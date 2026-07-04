@@ -1,0 +1,45 @@
+---
+title: current / which / where
+description: pvm current、which、where 命令——查看当前生效版本与命令真实路径。
+---
+
+# current / which / where
+
+## current
+
+显示当前工作目录实际生效的运行时版本。
+
+```bash
+pvm current
+pvm current node
+```
+
+依据[版本解析机制](/guide/version-resolution)的优先级，展示每个运行时的来源与版本。
+
+## which
+
+打印某个命令的**真实可执行文件路径**（经过 shim 解析后）。
+
+```bash
+pvm which node
+# ~/.pvm/versions/node/20.11.0/bin/node
+```
+
+## where
+
+打印某个运行时的**安装目录**。
+
+```bash
+pvm where node
+# ~/.pvm/versions/node/20.11.0
+```
+
+:::tip 提示
+排错 PATH 问题时，`pvm which node` 能立刻告诉你 shim 实际解析到了哪个二进制，
+比手动 `which node` 更可靠。
+:::
+
+---
+
+> ← 上一篇：[remove](/commands/remove)
+> 下一篇：[config](/commands/config) →

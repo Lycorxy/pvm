@@ -1,0 +1,36 @@
+---
+title: 常见问题
+description: 关于 PVM 安装、使用、设计的常见疑问解答。
+---
+
+# 常见问题
+
+## PVM 和 nvm / fnm / pyenv 有什么区别？
+
+PVM 是**多语言统一**的版本管理器：一个工具管 node、python、go、git 等，
+且基于 shim 驱动，不需要管理员权限、不污染系统 PATH。
+
+## 为什么需要管理员权限？
+
+不需要。PVM 的所有目录都在用户目录 `~/.pvm` 下，PATH 也只改用户级。
+
+## go / git 为什么不能项目级安装？
+
+二者是"全局唯一"型工具，实际场景中很少出现"项目 A 用 go 1.21、项目 B 用 go 1.22"的强需求，
+全局一份即可，因此 PVM 约束它们只能用户级 / 系统级。
+
+## 安装后命令找不到怎么办？
+
+先 `pvm reshim` 重新生成 shim；若仍不行，用 `pvm setup-path` 检查 PATH。
+
+## 能用 `.nvmrc` 吗？
+
+可以。PVM 向上查找时会兼容 `.nvmrc`，读取其中 node 版本。
+
+:::info
+更多排障细节见[故障排查](/faq/troubleshooting)。
+:::
+
+---
+
+> 下一篇：[故障排查](/faq/troubleshooting) →

@@ -1,0 +1,43 @@
+---
+title: use
+description: pvm use 命令——切换用户或项目当前生效的运行时版本。
+---
+
+# use
+
+设置运行时版本，供当前 shell / 项目使用。
+
+## 用法
+
+```bash
+pvm use node@20.11.0                 # 设为用户默认
+pvm use node@20.11.0 --local         # 写入 ./.pvmrc
+pvm use node --system                # 使用系统已装 node（用户级）
+pvm use node --system --local        # 使用系统已装 node（项目级）
+pvm use                              # 显示用户级配置
+pvm use --local                      # 显示项目级配置
+```
+
+## 参数
+
+| 参数 | 类型 | 默认值 | 说明 |
+| ---- | ---- | ------ | ---- |
+| `<runtime>@<version>` | 位置参数 | — | 不写版本时仅显示当前配置 |
+| `--user, -u` | flag | 默认 | 写入用户全局 |
+| `--local, -l` | flag | — | 写入 `.pvmrc` |
+| `--system, -s` | flag | — | 使用系统 PATH 中的版本 |
+
+## 行为说明
+
+- 默认作用域为 `--user`，写入 `~/.pvm/versions`。
+- `--local` 写入当前目录 `.pvmrc`，供团队共享。
+- `--system` 把版本标记为 `system`，运行时解析回退到系统 PATH。
+
+:::tip 提示
+`pvm use`（不带参数）是查看"当前配置了什么版本"的最快方式，等价于 `pvm list --user/--local`。
+:::
+
+---
+
+> ← 上一篇：[install](/commands/install)
+> 下一篇：[list / list-remote](/commands/list) →

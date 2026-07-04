@@ -1,0 +1,40 @@
+---
+title: validate / diagnostics
+description: pvm validate 与 pvm diagnostics 命令——校验 shim/版本一致性并做深度诊断。
+---
+
+# validate / diagnostics
+
+## validate
+
+深度校验 shim 与版本一致性。
+
+```bash
+pvm validate
+pvm validate --auto-fix     # 发现不一致时自动修复
+```
+
+校验内容：
+
+- shim 脚本是否指向有效版本目录。
+- 用户全局与项目 `.pvmrc` 的版本是否真实安装。
+
+## diagnostics
+
+针对某个运行时输出详细诊断信息。
+
+```bash
+pvm diagnostics node
+pvm diagnostics python
+```
+
+包含版本解析链路、来源文件、最终解析结果，便于定位"为什么用了这个版本"。
+
+:::tip 提示
+`pvm validate --auto-fix` 是"升级/重装后行为异常"时的首选修复命令。
+:::
+
+---
+
+> ← 上一篇：[setup / doctor](/commands/setup)
+> 下一篇：[self-update / uninstall](/commands/self) →

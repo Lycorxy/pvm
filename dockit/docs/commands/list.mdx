@@ -1,0 +1,42 @@
+---
+title: list / list-remote
+description: pvm list 与 pvm list-remote 命令——列出已安装与可安装的版本。
+---
+
+# list / list-remote
+
+## list, ls
+
+列出已安装的运行时版本。
+
+```bash
+pvm list                 # 列出全部
+pvm list node            # 仅 node
+pvm list --user          # 显示用户级版本配置
+pvm list --local         # 显示项目级版本配置（.pvmrc）
+```
+
+| 参数 | 说明 |
+| ---- | ---- |
+| `<runtime>` | 可选，仅列出该运行时 |
+| `--user, -u` | 显示用户全局配置 |
+| `--local, -l` | 显示项目 `.pvmrc` 配置 |
+
+## list-remote, lr
+
+列出远程可安装的版本。
+
+```bash
+pvm list-remote node
+pvm list-remote python
+```
+
+:::info
+`list-remote` 的数据来自 PVM 的版本注册中心（registry），默认走镜像源；若返回 403，
+PVM 会自动降级到镜像源重试。
+:::
+
+---
+
+> ← 上一篇：[use](/commands/use)
+> 下一篇：[remove](/commands/remove) →

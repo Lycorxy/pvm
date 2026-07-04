@@ -1,0 +1,38 @@
+{
+    "FixedFileInfo": {
+        "FileFlags": "00",
+        "FileFlagsMask": "3f",
+        "FileOS": "040004",
+        "FileSubType": "00",
+        "FileType": "01",
+        "FileVersion": {
+            "Build": 0,
+            "Major": 0,
+            "Minor": 2,
+            "Patch": 0
+        },
+        "ProductVersion": {
+            "Build": 0,
+            "Major": 0,
+            "Minor": 2,
+            "Patch": 0
+        }
+    },
+    "StringFileInfo": {
+        "Comments": "PVM - Polyglot Version Manager",
+        "CompanyName": "pvm",
+        "FileDescription": "PVM - Polyglot Version Manager",
+        "FileVersion": "v0.2.0",
+        "InternalName": "pvm",
+        "LegalCopyright": "Copyright 2024-2026 pvm contributors. MIT License.",
+        "OriginalFilename": "pvm.exe",
+        "ProductName": "PVM",
+        "ProductVersion": "v0.2.0"
+    },
+    "VarFileInfo": {
+        "Translation": {
+            "CharsetID": "04B0",
+            "LangID": "0409"
+        }
+    }
+}

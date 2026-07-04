@@ -1,0 +1,41 @@
+---
+title: setup / doctor
+description: pvm setup 与 pvm doctor 命令——首次初始化与环境健康自检。
+---
+
+# setup / doctor
+
+## setup
+
+首次初始化 PVM 目录结构并把 shims 加入 PATH。
+
+```bash
+pvm setup            # 手动初始化
+pvm setup-path       # 仅检查并修复 PATH 配置
+```
+
+`setup-path` 会诊断 PATH 是否包含 `~/.pvm/shims`、`~/.pvm/bin`，
+并提示与其它版本管理器（如 nvm）的冲突。
+
+## doctor
+
+检查 PVM 安装健康度。
+
+```bash
+pvm doctor
+```
+
+检查项包括：
+
+- 根目录 `~/.pvm` 与各子目录是否存在。
+- shims 目录是否在 PATH 中。
+- 已安装版本的完整性。
+
+:::warning 注意
+修改 PATH 后请重启终端 / IDE，否则 `doctor` 可能仍报 PATH 未生效。
+:::
+
+---
+
+> ← 上一篇：[config](/commands/config)
+> 下一篇：[validate / diagnostics](/commands/doctor-more) →

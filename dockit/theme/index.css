@@ -1,0 +1,85 @@
+/* ============================================
+   RSPress 主题变量覆盖 - 支持黑白主题
+   自动响应 RSPress 主题切换
+   ============================================ */
+
+/* 亮色主题 */
+:root {
+  /* 主色调 - Arco Design Blue */
+  --rp-c-brand: #165dff;
+  --rp-c-brand-light: #4080ff;
+  --rp-c-brand-dark: #0e42d2;
+  --rp-c-brand-tint: rgba(22, 93, 255, 0.1);
+
+  /* 背景 */
+  --rp-c-bg: #ffffff;
+  --rp-c-bg-soft: #f7f8fa;
+  --rp-c-bg-mute: #f2f3f5;
+  --rp-c-bg-elv: #ffffff;
+
+  /* 文字 */
+  --rp-c-text-1: #1d2129;
+  --rp-c-text-2: #4e5969;
+  --rp-c-text-3: #86909c;
+  --rp-c-text-4: #c9cdd4;
+
+  /* 边框 */
+  --rp-c-border: #e5e6eb;
+  --rp-c-divider: #e5e6eb;
+
+  /* 内容区边距 - 最大 24px */
+  --rp-content-padding-x: 24px;
+  --rp-content-padding-y: 24px;
+
+  /* 阴影 */
+  --rp-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --rp-shadow-2: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --rp-shadow-3: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* 暗色主题 - RSPress 2.0 使用 html.dark */
+html.dark,
+[data-theme='dark'] {
+  --rp-c-brand: #3c7eff;
+  --rp-c-brand-light: #5c94ff;
+  --rp-c-brand-dark: #1a5cff;
+  --rp-c-brand-tint: rgba(60, 126, 255, 0.15);
+
+  --rp-c-bg: #17171a;
+  --rp-c-bg-soft: #232324;
+  --rp-c-bg-mute: #2a2a2b;
+  --rp-c-bg-elv: #1f1f22;
+
+  --rp-c-text-1: #f6f6f6;
+  --rp-c-text-2: #c9cdd4;
+  --rp-c-text-3: #86909c;
+  --rp-c-text-4: #4e5969;
+
+  --rp-c-border: #3c3c3f;
+  --rp-c-divider: #3c3c3f;
+
+  --rp-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --rp-shadow-2: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --rp-shadow-3: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* 内容区域全宽 */
+.rspress-doc {
+  max-width: 100% !important;
+  padding: var(--rp-content-padding-y) var(--rp-content-padding-x);
+}
+
+/* 响应式边距 */
+@media (max-width: 768px) {
+  :root {
+    --rp-content-padding-x: 16px;
+    --rp-content-padding-y: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --rp-content-padding-x: 12px;
+    --rp-content-padding-y: 12px;
+  }
+}

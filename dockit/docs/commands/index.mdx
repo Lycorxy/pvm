@@ -1,0 +1,52 @@
+---
+title: 命令参考
+description: PVM 全部子命令一览与全局参数说明。
+---
+
+# 命令参考
+
+PVM 是一个 CLI 工具，语法为 `pvm <command> [arguments] [flags]`。
+下面按功能分组列出所有命令。
+
+## 全局参数
+
+| 参数 | 说明 |
+| ---- | ---- |
+| `--verbose, -V` | 显示详细输出 |
+| `--quiet, -q` | 抑制非必要输出 |
+| `--user, -u` | 操作用户级配置（默认作用域） |
+| `--local, -l` | 操作项目级配置（`.pvmrc`） |
+| `--system, -s` | 使用系统已装版本（仅 `use` 可用） |
+| `--mirror, -m` | 使用国内镜像下载（默认） |
+| `--official, -o` | 强制使用官方源 |
+| `--force, -f` | 强制重装 / 强制移除 |
+
+## 命令总览
+
+| 命令 | 分组 | 说明 |
+| ---- | ---- | ---- |
+| `install, i` | 版本管理 | 安装运行时版本 |
+| `use` | 版本管理 | 设定用户/项目当前版本 |
+| `list, ls` | 版本管理 | 列出已安装版本 |
+| `list-remote, lr` | 版本管理 | 列出可安装的远程版本 |
+| `remove, rm` | 版本管理 | 卸载版本 / 移除配置 |
+| `current` | 版本管理 | 显示当前生效版本 |
+| `which` | 版本管理 | 打印命令的真实路径 |
+| `where` | 版本管理 | 打印运行时的安装目录 |
+| `config, cfg` | 项目与系统 | 管理 `.pvmrc` |
+| `setup` | 项目与系统 | 首次初始化 |
+| `setup-path` | 项目与系统 | 检查并修复 PATH |
+| `doctor` | 项目与系统 | 检查安装健康度 |
+| `validate` | 项目与系统 | 校验 shim 与版本一致性 |
+| `diagnostics` | 项目与系统 | 某运行时的详细诊断 |
+| `self-update` | 项目与系统 | 升级 PVM 自身 |
+| `uninstall` | 项目与系统 | 卸载 PVM |
+| `version` | 其它 | 显示 PVM 版本 |
+
+:::info
+`pvm --help` 可随时打印完整用法；所有命令也支持 `--help`。
+:::
+
+---
+
+> 下一篇：[install](/commands/install) →

@@ -1,0 +1,42 @@
+---
+title: config
+description: pvm config 子命令——管理项目级 .pvmrc 文件（init/show/set/remove）。
+---
+
+# config
+
+管理项目级版本配置文件 `.pvmrc`，无需管理员权限。
+
+## 子命令
+
+| 子命令 | 说明 |
+| ------ | ---- |
+| `pvm config init` | 基于当前活跃版本创建 `.pvmrc` |
+| `pvm config show` | 显示当前 `.pvmrc` 内容 |
+| `pvm config set <rt>@<v>` | 新增或修改某运行时版本 |
+| `pvm config remove <rt>` | 从 `.pvmrc` 移除某运行时 |
+
+## 用法
+
+```bash
+pvm config init
+pvm config show
+pvm config set node@20
+pvm config set python 3.12       # 也支持分开写法
+pvm config remove node
+```
+
+## 说明
+
+- `config` 只操作当前目录的 `.pvmrc`，不会写入用户全局。
+- `config set` 找不到 `.pvmrc` 时会报错，请先 `pvm config init`。
+- 提交 `.pvmrc` 到版本库后，团队成员 `pvm use` 即可自动加载一致版本。
+
+:::tip 提示
+想用项目隔离能力又不想碰全局 PATH？把配置全放 `.pvmrc`，只靠 `pvm config` 管理即可。
+:::
+
+---
+
+> ← 上一篇：[current / which / where](/commands/current)
+> 下一篇：[setup / doctor](/commands/setup) →

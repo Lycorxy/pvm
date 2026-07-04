@@ -1,0 +1,78 @@
+---
+title: 快速开始
+description: 用 PVM 在 5 分钟内安装并使用 node、python 等运行时。
+---
+
+# 快速开始
+
+## 1. 安装一个版本
+
+```bash
+# 安装 Node.js 并设为用户默认
+pvm install node@20.11.0
+
+# 同时安装多个
+pvm install python@3.12.0 go@1.22.0
+```
+
+## 2. 在项目中使用
+
+进入项目目录，创建 `.pvmrc` 声明所需版本：
+
+```bash
+pvm init --local
+# 生成 .pvmrc，含当前活跃版本
+```
+
+`.pvmrc` 内容示例：
+
+```text
+node 20.11.0
+python 3.12.0
+go 1.22.0
+pnpm 9.0.0
+```
+
+之后只要执行：
+
+```bash
+pvm use
+```
+
+即可让当前 shell 切到 `.pvmrc` 声明的版本。
+
+## 3. 切换版本
+
+```bash
+# 切换到系统安装的 node
+pvm use node --system
+
+# 临时指定版本
+pvm use node@18.19.0
+```
+
+## 4. 查看已安装版本
+
+```bash
+pvm list
+# 列出全部已安装运行时
+
+pvm list node
+# 仅列出 node
+```
+
+## 5. 卸载版本
+
+```bash
+pvm remove node@20.11.0
+```
+
+:::tip 推荐工作流
+团队协同时把 `.pvmrc` 提交到版本库，每个成员 clone 后跑一次 `pvm use` 就能获得一致的运行时版本，
+无需在文档里逐个说明"请安装 Node 20"。
+:::
+
+---
+
+> ← 上一篇：[安装与初始化](/guide/install)
+> 下一篇：[版本解析机制](/guide/version-resolution) →

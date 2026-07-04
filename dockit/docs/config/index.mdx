@@ -1,0 +1,35 @@
+---
+title: 配置
+description: PVM 配置总览——.pvmrc、运行时与镜像源、环境变量。
+---
+
+# 配置
+
+PVM 的配置分两类：
+
+- **项目级**：`.pvmrc` 文件，随项目提交到版本库。
+- **用户级**：`~/.pvm/versions`，`pvm use` 写入的默认版本。
+
+## 配置内容
+
+| 主题 | 说明 | 入口 |
+| ---- | ---- | ---- |
+| `.pvmrc 文件` | 项目级版本声明格式与解析规则 | [查看](/config/pvmrc) |
+| 运行时与镜像源 | 支持的运行时、作用域与下载源 | [查看](/config/runtimes) |
+| 环境变量 | `PVM_HOME`、`PVM_<RT>_VERSION` 等 | [查看](/config/env) |
+
+## 作用域标志
+
+| 标志 | 含义 |
+| ---- | ---- |
+| `--user, -u` | 用户全局（默认） |
+| `--local, -l` | 项目 `.pvmrc` |
+| `--system, -s` | 系统 PATH 中的版本（仅 `use`） |
+
+:::tip 推荐
+团队协作优先用 `.pvmrc` + `pvm use`；个人默认版本用 `pvm use <rt>@<v>` 写入用户全局。
+:::
+
+---
+
+> 下一篇：[.pvmrc 文件](/config/pvmrc) →

@@ -1,0 +1,48 @@
+---
+title: install
+description: pvm install 命令——安装运行时版本，写入用户全局或项目 .pvmrc。
+---
+
+# install
+
+安装一个或多个运行时版本。
+
+## 用法
+
+```bash
+pvm install                              # 先从 .pvmrc 安装，无则回退用户全局
+pvm install node@20.11.0                 # 安装并设为用户默认
+pvm install node@20.11.0 --local         # 安装并写入 .pvmrc
+pvm install python@3.12.0 go@1.22.0      # 同时安装多个
+pvm install --force node@20.11.0         # 强制重装
+pvm install --official node@20.11.0      # 强制走官方源
+```
+
+## 参数
+
+| 参数 | 类型 | 默认值 | 说明 |
+| ---- | ---- | ------ | ---- |
+| `<runtime>@<version>` | 位置参数 | — | 可多个；不写版本表示最新稳定版 |
+| `--user, -u` | flag | 默认 | 保存到用户全局 `~/.pvm/versions` |
+| `--local, -l` | flag | — | 写入当前目录 `.pvmrc` |
+| `--mirror, -m` | flag | 默认开 | 国内镜像下载 |
+| `--official, -o` | flag | — | 官方源（覆盖镜像） |
+| `--force, -f` | flag | — | 已安装也强制重装 |
+
+## 行为说明
+
+- 不带版本参数时：优先从项目 `.pvmrc` 安装，找不到则回退用户全局配置。
+- `--user` 与 `--local` **互斥**，同时指定会报错。
+- `--system` 不能用于 install（系统版本无需下载）。
+- `go` / `git` 不支持 `--local`，只能用户级安装。
+- 安装完成后自动 `reshim`，新命令立即可用。
+
+:::warning 注意
+`npm` / `npx` / `corepack` 是 Node.js 自带工具，安装 `node` 即可获得，
+对它们执行 `pvm install` 会被自动引导为安装 `node`。
+:::
+
+---
+
+> ← 上一篇：[命令参考](/commands/)
+> 下一篇：[use](/commands/use) →

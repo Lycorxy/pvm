@@ -1,0 +1,37 @@
+---
+title: remove
+description: pvm remove 命令——卸载版本或移除配置条目。
+---
+
+# remove
+
+卸载运行时版本，或从配置中移除条目。
+
+## 用法
+
+```bash
+pvm remove node@20.11.0         # 完全卸载该版本
+pvm remove git                  # 自动检测并移除所有 git 版本
+pvm remove node@20.11.0 --force # 强制移除当前正在使用的版本
+pvm remove node --user          # 仅从用户配置移除
+pvm remove node --local         # 仅从 .pvmrc 移除
+```
+
+## 参数
+
+| 参数 | 类型 | 说明 |
+| ---- | ---- | ---- |
+| `<runtime>[@<version>]` | 位置参数 | 不写版本时自动检测并移除该运行时全部版本 |
+| `--force, -f` | flag | 强制移除正在使用的版本 |
+| `--user, -u` | flag | 仅移除用户全局配置 |
+| `--local, -l` | flag | 仅移除项目 `.pvmrc` 条目 |
+
+:::warning 注意
+直接 `remove` 一个"当前正在使用"的版本会报错，需要加上 `--force`。
+这会移除磁盘上的安装目录，且不可恢复。
+:::
+
+---
+
+> ← 上一篇：[list / list-remote](/commands/list)
+> 下一篇：[current / which / where](/commands/current) →

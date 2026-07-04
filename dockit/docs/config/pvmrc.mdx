@@ -1,0 +1,50 @@
+---
+title: .pvmrc 文件
+description: PVM 项目级版本配置文件 .pvmrc 的格式与解析规则。
+---
+
+# .pvmrc 文件
+
+`.pvmrc` 是 PVM 的项目级版本声明文件，放在项目根目录。
+`pvm use` 时会向上查找并读取它，实现项目级版本隔离。
+
+## 格式
+
+每行一个 `<runtime> <version>`，井号开头为注释：
+
+```text
+# pvm project-level version config
+node 20.11.0
+python 3.12.0
+go 1.22.0
+pnpm 9.0.0
+```
+
+也支持 `=` 写法（供 `pvm config set` 使用）：
+
+```text
+node=20.11.0
+python=3.12.0
+```
+
+## 特殊值
+
+| 写法 | 含义 |
+| ---- | ---- |
+| `node 20.11.0` | 指定具体版本 |
+| `node latest` | 最新稳定版 |
+| `node system` | 使用系统 PATH 中的版本（不下载） |
+
+## 查找规则
+
+- 从当前目录**向上**逐层查找第一个 `.pvmrc`（兼容 `.nvmrc`）。
+- `go` / `git` 跳过项目级解析，只认用户全局。
+- 项目 `.pvmrc` 优先级高于用户全局，低于环境变量 `PVM_<RT>_VERSION`。
+
+:::tip 提示
+把 `.pvmrc` 提交到 Git，团队成员 clone 后 `pvm use` 即获得一致运行时版本。
+:::
+
+---
+
+> 下一篇：[运行时与镜像源](/config/runtimes) →

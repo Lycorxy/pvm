@@ -1,0 +1,47 @@
+---
+title: 运行时与镜像源
+description: PVM 支持的运行时清单、作用域限制与下载镜像源配置。
+---
+
+# 运行时与镜像源
+
+## 支持的运行时
+
+| 运行时 | 用户级 | 项目级 | 系统级 | 备注 |
+| ------ | ------ | ------ | ------ | ---- |
+| `node` | ✅ | ✅ | ✅ | |
+| `python` | ✅ | ✅ | ✅ | |
+| `pnpm` | ✅ | ✅ | ✅ | 依赖 node |
+| `yarn` | ✅ | ✅ | ✅ | 依赖 node |
+| `go` | ✅ | ❌ | ✅ | 全局唯一，仅用户/系统 |
+| `git` | ✅ | ❌ | ✅ | 全局唯一，仅用户/系统 |
+
+别名已自动映射：`nodejs`→`node`、`golang`→`go`、`py`→`python`、
+`npm`/`npx`/`corepack`→`node`。
+
+## 包管理器依赖
+
+`pnpm` 与 `yarn` 依赖 `node`。安装它们前会检查 node 是否就绪（可通过 `PVM_NODE_VERSION` 提供），
+但不强制阻断——node 也可由系统提供。
+
+## 镜像源
+
+| 来源 | 控制方式 | 说明 |
+| ---- | -------- | ---- |
+| 国内镜像（默认） | 默认行为，或 `--mirror` | 下载更快 |
+| 官方源 | `--official` | 覆盖镜像，直连官方 |
+| GitHub 限流自动降级 | 自动 | 遇 403 自动回退镜像重试 |
+
+```bash
+pvm install node@20.11.0 --official   # 强制官方源
+pvm install node@20.11.0 --mirror      # 显式镜像（默认）
+```
+
+:::warning 注意
+`poetry` / `pdm` 等 Python CLI 工具不由 PVM 管理，请用 `pipx` 安装。
+:::
+
+---
+
+> ← 上一篇：[.pvmrc 文件](/config/pvmrc)
+> 下一篇：[环境变量](/config/env) →

@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="PVM - Polyglot Version Manager"
+           Language="1033"
+           Version="0.0.0.0"
+           Manufacturer="lucky-zsh"
+           UpgradeCode="c5d7a8e2-4b3f-4a1e-9c8d-2e5f6a7b8c9d">
+
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perUser" />
+    <Upgrade Id="c5d7a8e2-4b3f-4a1e-9c8d-2e5f6a7b8c9d">
+      <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes"
+                      OnlyDetect="no"
+                      Property="PREVIOUSVERSIONSINSTALLED" />
+    </Upgrade>
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="ProductFeature" Title="PVM" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="PathEnvVar" />
+      <ComponentRef Id="ShimsPathEnvVar" />
+    </Feature>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="INSTALLDIR" Name="pvm" />
+      </Directory>
+    </Directory>
+
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLDIR">
+      <Component Id="MainExecutable" Guid="a1b2c3d4-e5f6-7890-abcd-ef1234567890">
+        <RegistryValue Root="HKCU" Key="Software\pvm" Name="InstallDir" Value="[INSTALLDIR]" Type="string" KeyPath="yes" />
+        <File Id="PvmExe" Source="pvm.exe" />
+        <RemoveFolder Id="RemoveINSTALLDIR" Directory="INSTALLDIR" On="uninstall" />
+      </Component>
+      <Component Id="ShimExecutable" Guid="d4e5f6a7-b8c9-0123-def0-234567890123">
+        <RegistryValue Root="HKCU" Key="Software\pvm" Name="ShimExe" Value="1" Type="string" KeyPath="yes" />
+        <File Id="PvmShimExe" Source="pvm-shim.exe" />
+      </Component>
+    </ComponentGroup>
+
+    <Component Id="PathEnvVar" Directory="INSTALLDIR" Guid="b2c3d4e5-f6a7-8901-bcde-f12345678901">
+      <RegistryValue Root="HKCU" Key="Software\pvm" Name="PathSet" Value="1" Type="string" KeyPath="yes" />
+      <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]" Permanent="no" Part="last" Action="set" System="no" />
+    </Component>
+
+    <Component Id="ShimsPathEnvVar" Directory="INSTALLDIR" Guid="c3d4e5f6-a7b8-9012-cdef-123456789012">
+      <RegistryValue Root="HKCU" Key="Software\pvm" Name="ShimsPathSet" Value="1" Type="string" KeyPath="yes" />
+      <Environment Id="SHIMS_PATH" Name="PATH" Value="[INSTALLDIR]shims" Permanent="no" Part="last" Action="set" System="no" />
+    </Component>
+
+    <CustomAction Id="RunPvmSetup"
+                  FileKey="PvmExe"
+                  ExeCommand="setup --yes"
+                  Execute="deferred"
+                  Impersonate="yes"
+                  Return="ignore" />
+
+    <InstallExecuteSequence>
+      <RemoveExistingProducts After="InstallInitialize" />
+      <Custom Action="RunPvmSetup" After="InstallFiles">NOT Installed OR REINSTALL</Custom>
+    </InstallExecuteSequence>
+
+    <UI>
+      <UIRef Id="WixUI_Minimal" />
+    </UI>
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+  </Product>
+</Wix>

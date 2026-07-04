@@ -1,0 +1,36 @@
+---
+title: 故障排查
+description: PVM 常见故障与对应排查命令。
+---
+
+# 故障排查
+
+| 现象 | 可能原因 | 排查 / 解决 |
+| ---- | -------- | ----------- |
+| `pvm` 命令找不到 | PATH 未包含 shims | `pvm setup-path` 并检查用户 PATH |
+| `node` 仍是系统旧版本 | shim 未优先于系统 PATH | `pvm which node` 看解析结果；调整 PATH 顺序 |
+| 装了版本但命令没有 | shim 未生成 | `pvm reshim` |
+| 安装报 403 / GitHub 限流 | 默认镜像源偶发 | 加 `--official` 或等待自动降级重试 |
+| `pvm use` 不生效 | 当前目录无 `.pvmrc` 且用户全局也为空 | 先 `pvm use node@x` 写用户默认 |
+| 版本解析异常 | 环境变量 / `.pvmrc` / 全局 冲突 | `pvm diagnostics node` 看完整链路 |
+| shim 与版本不一致 | 手动删过版本目录 | `pvm validate --auto-fix` |
+
+## 诊断命令速查
+
+```bash
+pvm doctor                  # 安装健康度
+pvm setup-path              # PATH 检查
+pvm reshim                  # 重建 shim
+pvm which <cmd>             # 命令真实路径
+pvm diagnostics <runtime>   # 某运行时解析链路
+pvm validate --auto-fix     # 一致性校验+自动修复
+```
+
+:::warning 注意
+修改 PATH 或安装新版本后，请**重启终端 / IDE**，否则可能仍读到旧环境。
+:::
+
+---
+
+> ← 上一篇：[常见问题](/faq/)
+> 返回：[常见问题](/faq/)

@@ -1,0 +1,53 @@
+---
+title: Shim 机制
+description: PVM 如何通过 shim 脚本实现零 PATH 污染、免管理员权限的版本切换。
+---
+
+# Shim 机制
+
+PVM 的核心设计是 **shim（垫片）驱动**——它不需要修改系统 PATH 去指向具体版本目录，
+而是在 `~/.pvm/shims` 下为每个可执行命令放置一个极小的转发脚本。
+
+## 原理
+
+```
+~/.pvm/shims/node      ← 转发脚本（在 PATH 最前面）
+        │
+        ▼
+pvm 解析版本 → 找到 ~/.pvm/versions/<rt>/<ver>/bin/node（或 installs 下）
+        │
+        ▼
+执行真正的二进制
+```
+
+- 安装新版本后，PVM 调用 `reshim` 重新生成 shims，使新命令可被 PATH 发现。
+- 当你切换用户/项目版本时，shim 在运行时解析目标版本，**无需改动 PATH**。
+
+## 为什么不用管理员权限
+
+传统版本管理器常需要写入系统目录或改系统 PATH。PVM 的方案：
+
+- `shims/` 与 `bin/` 都在用户目录 `~/.pvm/` 下。
+- 只需把 `~/.pvm/shims` 加进**用户级** PATH。
+- IDE（如 VSCode）通过 shims 自动识别 `node` / `git` 等命令。
+
+## Windows 上的 shim 可执行文件
+
+Windows 下 PVM 还会在 `~/.pvm/bin/` 下生成 `node.exe` / `git.exe` 等真实转发 exe，
+供 VSCode 等依赖 `.exe` 探测的工具使用。
+
+## 重新生成 shims
+
+```bash
+pvm reshim
+# 安装/卸载版本后，若命令未被识别，手动执行一次
+```
+
+:::tip 提示
+误删或命令"装了找不到"时，优先跑 `pvm reshim`，而不是重装。
+:::
+
+---
+
+> ← 上一篇：[版本解析机制](/guide/version-resolution)
+> 返回：[指南](/guide/)

@@ -1,0 +1,104 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Get version
+        id: version
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build all platforms
+        run: .\scripts\build.ps1 -Version ${{ steps.version.outputs.VERSION }}
+
+      - name: Package
+        run: .\scripts\package.ps1 -Version ${{ steps.version.outputs.VERSION }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: dist/packages/
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: dist/checksums.txt
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: packages/
+
+      - name: Download checksums
+        uses: actions/download-artifact@v4
+        with:
+          name: checksums
+          path: .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: PVM ${{ github.ref_name }}
+          body: |
+            ## PVM ${{ github.ref_name }}
+
+            ### Downloads
+
+            | Platform | Arch | File |
+            |----------|------|------|
+            | Windows | x64 | `pvm-${{ github.ref_name }}-windows-amd64.zip` |
+            | Windows | ARM64 | `pvm-${{ github.ref_name }}-windows-arm64.zip` |
+            | macOS | x64 | `pvm-${{ github.ref_name }}-darwin-amd64.zip` |
+            | macOS | ARM64 | `pvm-${{ github.ref_name }}-darwin-arm64.zip` |
+            | Linux | x64 | `pvm-${{ github.ref_name }}-linux-amd64.zip` |
+            | Linux | ARM64 | `pvm-${{ github.ref_name }}-linux-arm64.zip` |
+
+            ### Install
+
+            ```powershell
+            # Windows (PowerShell)
+            irm https://get.pvm.dev | iex
+            ```
+
+            ```bash
+            # macOS/Linux
+            curl -fsSL https://get.pvm.dev | sh
+            ```
+
+            ### Checksums
+
+            See `checksums.txt` for SHA256 hashes.
+
+            ---
+
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/v0.0.0...${{ github.ref_name }}
+          files: |
+            packages/*
+            checksums.txt
+          draft: false
+          prerelease: false

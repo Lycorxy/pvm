@@ -1,0 +1,22 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#165dff"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <linearGradient id="lg3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 层叠卡片，代表多运行时版本 -->
+  <rect x="4" y="9" width="20" height="20" rx="3" fill="url(#lg1)" opacity="0.2" transform="rotate(-6 14 19)"/>
+  <rect x="6" y="6" width="20" height="20" rx="3" fill="url(#lg1)" opacity="0.45" transform="rotate(3 16 16)"/>
+  <rect x="8" y="3" width="20" height="20" rx="3" fill="url(#lg1)"/>
+
+  <!-- 版本号标记 "v" 形 + 圆点，代表 version manager -->
+  <path d="M12 11 L16 19 L20 11" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="23" cy="9" r="4.5" fill="url(#lg3)"/>
+  <circle cx="23" cy="9" r="2" fill="white" opacity="0.85"/>
+</svg>

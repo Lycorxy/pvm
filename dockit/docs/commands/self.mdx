@@ -1,0 +1,33 @@
+---
+title: self-update / uninstall
+description: pvm self-update 与 pvm uninstall 命令——升级与卸载 PVM 自身。
+---
+
+# self-update / uninstall
+
+## self-update
+
+升级 PVM 自身到最新版本。
+
+```bash
+pvm self-update
+```
+
+## uninstall
+
+从当前机器卸载 PVM。
+
+```bash
+pvm uninstall
+```
+
+会清理 `~/.pvm` 目录，并提示从 PATH 中移除相关条目（该步需重启终端生效）。
+
+:::warning 注意
+`uninstall` 不会删除你已安装的运行时二进制所在目录之外的用户数据，请确认后执行。
+:::
+
+---
+
+> ← 上一篇：[validate / diagnostics](/commands/doctor-more)
+> 返回：[命令参考](/commands/)

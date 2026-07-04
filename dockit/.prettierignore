@@ -1,0 +1,15 @@
+# 依赖
+node_modules
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# 构建输出
+dist
+doc_build
+.turbo
+
+# 其他
+.DS_Store
+*.log
+coverage

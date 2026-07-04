@@ -1,0 +1,55 @@
+---
+title: 版本解析机制
+description: PVM 如何按 4 级优先级（环境变量 → .pvmrc → 用户全局 → 系统）决定使用哪个版本。
+---
+
+# 版本解析机制
+
+当你执行 `node` / `python` 等命令时，PVM 的 shim 会调用 `ResolveVersion` 决定实际运行的版本。
+解析顺序从高到低为：
+
+## 解析优先级
+
+| 优先级 | 来源 | 说明 |
+| ------ | ---- | ---- |
+| 1（最高） | 环境变量 `PVM_<RT>_VERSION` | 如 `PVM_NODE_VERSION=20.11.0` |
+| 2 | 项目 `.pvmrc` / `.nvmrc` | 从当前目录向上查找 |
+| 3 | 用户全局 `~/.pvm/versions` | `pvm use` 写入的默认版本 |
+| 4（最低） | 系统 PATH | 系统已装的同名命令，作为兜底 |
+
+## 环境变量覆盖
+
+```bash
+# 临时覆盖 node 版本，优先级高于 .pvmrc
+export PVM_NODE_VERSION=18.19.0
+node -v   # => v18.19.0
+```
+
+## 项目文件查找
+
+`FindVersionFile` 从当前工作目录**向上**逐层查找第一个 `.pvmrc`（也兼容 `.nvmrc`），
+取其中该运行时的版本。例如：
+
+```text
+# 项目根 / .pvmrc
+node 20.11.0
+python 3.12.0
+```
+
+:::warning 注意
+`go` / `git` 这类"全局唯一"运行时**跳过项目级解析**——即使历史 `.pvmrc` 里残留 `go=xxx`，
+也不会被采用，避免误生效。
+:::
+
+## 特殊标记 `system`
+
+`.pvmrc` 或 `~/.pvm/versions` 中写入 `system` 表示"使用系统 PATH 中的全局安装版本"，不下载：
+
+```text
+node system
+```
+
+---
+
+> ← 上一篇：[快速开始](/guide/quick-start)
+> 下一篇：[Shim 机制](/guide/shim) →
