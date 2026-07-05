@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/pvm/pvm/internal/config"
 	"github.com/pvm/pvm/internal/logger"
@@ -19,6 +21,7 @@ import (
 //  4. 将 ~/.pvm/shims 和 ~/.pvm/bin 加入用户 PATH
 //  5. 设置 PVM_HOME 环境变量
 func runSetup(args []string) error {
+	_ = args // 目前不接受额外参数，保持签名一致性
 	home := config.PvmHome()
 	binHome := config.BinHome()
 	shimsDir := config.ShimsDir()
@@ -151,7 +154,7 @@ func runSetup(args []string) error {
 	if runtime.GOOS == "windows" {
 		if err := os.Setenv("PVM_HOME", home); err == nil {
 			// 持久化到用户环境变量
-			exec.Command("setx", "PVM_HOME", home).Run()
+			_ = exec.Command("setx", "PVM_HOME", home).Run() // 忽略错误
 			logger.Info("  ✓ PVM_HOME = %s", home)
 		}
 	} else {
@@ -327,7 +330,6 @@ func setupWindowsPath(binHome, shimsDir string) error {
 		}
 		if isConflict && !containsPathEntryList([]string{shimsDir, binHome}, e) {
 			conflictsRemoved = append(conflictsRemoved, e)
-			changed = true
 		} else {
 			filtered = append(filtered, e)
 		}
@@ -362,6 +364,7 @@ func setupWindowsPath(binHome, shimsDir string) error {
 		newPath := joinPath(entries)
 		// 使用 UTF-8 编码的脚本块，避免特殊字符（如括号、&、'）导致 PowerShell 解析失败
 		// 同时广播 WM_SETTINGCHANGE 消息，让其他进程感知环境变量变更
+		// 使用 -EncodedCommand 避免 $ 变量在某些 shell 环境中被替换
 		escapedPath := escapePowerShellString(newPath)
 		psScript := fmt.Sprintf(`$newPath = '%s'; `+
 			`[Environment]::SetEnvironmentVariable('Path', $newPath, 'User'); `+
@@ -375,11 +378,13 @@ func setupWindowsPath(binHome, shimsDir string) error {
 			`'Win32Helper'::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null; `+
 			`Write-Host "  ✓ Environment change broadcasted" } catch {}`,
 			escapedPath)
-		cmd := exec.Command("powershell", "-NoProfile", "-Command", psScript)
+		encodedCmd := encodePowerShellCommand(psScript)
+		cmd := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd)
 		if err := cmd.Run(); err != nil {
-			// 如果普通 -Command 失败，尝试使用 Here-String 方式
-			hereStringScript := fmt.Sprintf(`$path = '%s'; [Environment]::SetEnvironmentVariable('Path', $path, 'User')`, escapePowerShellString(newPath))
-			cmd2 := exec.Command("powershell", "-NoProfile", "-Command", hereStringScript)
+			// 如果 -EncodedCommand 也失败，尝试简化命令
+			simpleScript := fmt.Sprintf(`[Environment]::SetEnvironmentVariable('Path', '%s', 'User')`, escapedPath)
+			encodedSimple := encodePowerShellCommand(simpleScript)
+			cmd2 := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedSimple)
 			if err2 := cmd2.Run(); err2 != nil {
 				return fmt.Errorf("cannot update user PATH: %w (also tried alternative: %v)", err, err2)
 			}
@@ -395,7 +400,7 @@ func setupWindowsPath(binHome, shimsDir string) error {
 	// 3. 检测并修复系统级 PATH（Machine）中的冲突目录
 	// Windows 合并 PATH 顺序为：系统 PATH + 用户 PATH
 	// 若系统 PATH 中存在冲突的 runtime 目录，它们会排在用户 PATH 的 shims 前面，导致 shim 失效
-	if err := fixSystemPathConflicts(conflictDirNames, shimsDir); err != nil {
+	if err := fixSystemPathConflicts(conflictDirNames); err != nil {
 		logger.Info("  ⚠ Could not auto-fix system PATH conflicts: %v", err)
 	}
 
@@ -448,6 +453,7 @@ func ensureGitBashInUserPath() {
 	newPath := joinPath(newEntries)
 
 	// 写入用户级 PATH 并广播 WM_SETTINGCHANGE，让 VSCode 等进程感知变更
+	// 使用 -EncodedCommand 避免 $ 变量在某些 shell 环境中被替换
 	escapedPath := escapePowerShellString(newPath)
 	psScript := fmt.Sprintf(`$newPath = '%s'; `+
 		`[Environment]::SetEnvironmentVariable('Path', $newPath, 'User'); `+
@@ -458,7 +464,8 @@ func ensureGitBashInUserPath() {
 		`try { $HWND_BROADCAST = [IntPtr]0xffff; $WM_SETTINGCHANGE = 0x001A; $result = [UIntPtr]::Zero; `+
 		`'Win32Helper'::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null } catch {}`,
 		escapedPath)
-	if err := exec.Command("powershell", "-NoProfile", "-Command", psScript).Run(); err != nil {
+	encodedCmd := encodePowerShellCommand(psScript)
+	if err := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd).Run(); err != nil {
 		logger.Info("  ⚠ Could not update user PATH for Git Bash: %v", err)
 		return
 	}
@@ -494,7 +501,7 @@ func detectVersionManagers(conflictPaths []string) map[string]string {
 
 // fixSystemPathConflicts 检测系统级 PATH 中的冲突目录，提供多种修复方案
 // 优先级：1) 卸载冲突工具 2) MSI/安装器无法修改系统 PATH（无管理员权限）
-func fixSystemPathConflicts(conflictDirNames []string, shimsDir string) error {
+func fixSystemPathConflicts(conflictDirNames []string) error {
 	sysPath, err := exec.Command("powershell", "-NoProfile", "-Command",
 		`[Environment]::GetEnvironmentVariable('Path','Machine')`).Output()
 	if err != nil {
@@ -588,7 +595,7 @@ func setupUnixPath(binHome, shimsDir string) error {
 		shellName = "bash"
 	}
 
-	rcFiles := []string{}
+	var rcFiles []string
 	switch shellName {
 	case "bash":
 		rcFiles = []string{".bashrc", ".bash_profile"}
@@ -634,7 +641,9 @@ func setupUnixPath(binHome, shimsDir string) error {
 			logger.Info("  ⚠ Cannot write to %s: %v", rcPath, err)
 			continue
 		}
-		f.WriteString(snippet)
+		if _, err := f.WriteString(snippet); err != nil {
+			logger.Verbose("  write to %s failed: %v", rcRel, err)
+		}
 		f.Close()
 		logger.Info("  ✓ Configured in ~/%s", rcRel)
 		anyConfigured = true
@@ -762,7 +771,7 @@ func setupPathUnix(shimsDir, binHome string, checkOnly bool) error {
 		shellName = "bash"
 	}
 
-	rcFiles := []string{}
+	var rcFiles []string
 	switch shellName {
 	case "bash":
 		rcFiles = []string{".bashrc", ".bash_profile"}
@@ -865,4 +874,19 @@ func escapePowerShellString(s string) string {
 	// 单引号字符串：' 转义为 ''
 	s = strings.ReplaceAll(s, "'", "''")
 	return s
+}
+
+// encodePowerShellCommand 将 PowerShell 脚本编码为 Base64（UTF-16LE）
+// 用于 -EncodedCommand 参数，避免 $ 变量在某些 shell 环境中被替换
+func encodePowerShellCommand(script string) string {
+	// PowerShell 要求 UTF-16LE 编码
+	runes := []rune(script)
+	utf16Codes := utf16.Encode(runes)
+	// 转换为 []byte（每个 uint16 是 2 bytes，小端序）
+	buf := make([]byte, len(utf16Codes)*2)
+	for i, u := range utf16Codes {
+		buf[i*2] = byte(u)
+		buf[i*2+1] = byte(u >> 8)
+	}
+	return base64.StdEncoding.EncodeToString(buf)
 }

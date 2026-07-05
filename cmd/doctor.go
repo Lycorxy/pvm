@@ -20,6 +20,7 @@ type doctorResult struct {
 
 // runDoctor 检查 pvm 安装健康度
 func runDoctor(args []string) error {
+	_ = args // 目前不接受额外参数，保持签名一致性
 	checks := []struct {
 		name string
 		fn   func() (bool, string)

@@ -21,10 +21,10 @@ func Parse(s string) Version {
 	parts := strings.SplitN(s, ".", 3)
 
 	if len(parts) >= 1 {
-		fmt.Sscanf(parts[0], "%d", &v.Major)
+		_, _ = fmt.Sscanf(parts[0], "%d", &v.Major) // 忽略错误，使用默认值 0
 	}
 	if len(parts) >= 2 {
-		fmt.Sscanf(parts[1], "%d", &v.Minor)
+		_, _ = fmt.Sscanf(parts[1], "%d", &v.Minor) // 忽略错误，使用默认值 0
 	}
 	if len(parts) >= 3 {
 		// Handle patch versions like "0-rc1"
@@ -32,7 +32,7 @@ func Parse(s string) Version {
 		if idx := strings.IndexAny(patchStr, "-+"); idx >= 0 {
 			patchStr = patchStr[:idx]
 		}
-		fmt.Sscanf(patchStr, "%d", &v.Patch)
+		_, _ = fmt.Sscanf(patchStr, "%d", &v.Patch) // 忽略错误，使用默认值 0
 	}
 
 	return v

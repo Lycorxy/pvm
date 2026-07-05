@@ -12,9 +12,9 @@ import (
 //
 // 策略（统一 pvm-shim 方案）：
 //   - Windows: 对所有运行时都创建 .exe（VSCode 等 IDE 只认 .exe）
-//     - Git: pvm-shim 副本（git/bash/sh 等转发到 pvm shim-exec）+ .cmd 直接指向
-//       （ssh/curl/vim 等非 RuntimeShims 命令，避免 pvm 转发循环）
-//     - Python/Go: 直接复制 exe
+//   - Git: pvm-shim 副本（git/bash/sh 等转发到 pvm shim-exec）+ .cmd 直接指向
+//     （ssh/curl/vim 等非 RuntimeShims 命令，避免 pvm 转发循环）
+//   - Python/Go: 直接复制 exe
 //   - Unix: 符号链接或复制
 //
 // ~/.pvm/bin 在 setup 时已加入 PATH 且永不变化，IDE 通过 bin 中的 exe 稳定可达。
@@ -281,9 +281,16 @@ func copyFile(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		srcFile2, _ := os.Open(src)
+		srcFile2, err := os.Open(src)
+		if err != nil {
+			dstFile2.Close()
+			return err
+		}
 		defer srcFile2.Close()
-		dstFile2.ReadFrom(srcFile2)
+		if _, err := dstFile2.ReadFrom(srcFile2); err != nil {
+			dstFile2.Close()
+			return err
+		}
 		dstFile2.Close()
 	}
 	return os.Chmod(dst, srcInfo.Mode())

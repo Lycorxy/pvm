@@ -209,15 +209,6 @@ func searchPvmrc(cwd string) string {
 	return ""
 }
 
-// getCurrentDir 获取当前工作目录
-func getCurrentDir() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	return cwd
-}
-
 // contains 判断切片是否包含字符串
 func contains(slice []string, s string) bool {
 	for _, item := range slice {

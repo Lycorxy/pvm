@@ -1,14 +1,16 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*"
-           Name="PVM - Polyglot Version Manager"
-           Language="1033"
-           Version="0.0.0.0"
-           Manufacturer="lucky-zsh"
+  <Product Id="*" 
+           Name="PVM - Polyglot Version Manager" 
+           Language="1033" 
+           Version="0.0.0.0" 
+           Manufacturer="lucky-zsh" 
            UpgradeCode="c5d7a8e2-4b3f-4a1e-9c8d-2e5f6a7b8c9d">
-
+    
     <Package InstallerVersion="200" Compressed="yes" InstallScope="perUser" />
+    <!-- 鎵嬪姩瀹氫箟鍗囩骇瑙勫垯锛屾敮鎸佸悓鐗堟湰閲嶈锛圛ncludeThisVersion="yes"锛夊拰闄嶇骇瀹夎 -->
     <Upgrade Id="c5d7a8e2-4b3f-4a1e-9c8d-2e5f6a7b8c9d">
+      <!-- 鍖归厤鎵€鏈夌増鏈紙鍚悓鐗堟湰锛夛紝瑙﹀彂鍗歌浇鏃х増鏈?-->
       <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes"
                       OnlyDetect="no"
                       Property="PREVIOUSVERSIONSINSTALLED" />
@@ -29,8 +31,10 @@
 
     <ComponentGroup Id="ProductComponents" Directory="INSTALLDIR">
       <Component Id="MainExecutable" Guid="a1b2c3d4-e5f6-7890-abcd-ef1234567890">
+        <!-- perUser 瀹夎鏃跺繀椤荤敤娉ㄥ唽琛ㄤ綔涓?KeyPath -->
         <RegistryValue Root="HKCU" Key="Software\pvm" Name="InstallDir" Value="[INSTALLDIR]" Type="string" KeyPath="yes" />
         <File Id="PvmExe" Source="pvm.exe" />
+        <!-- 鍗歌浇鏃跺垹闄ゅ畨瑁呯洰褰?-->
         <RemoveFolder Id="RemoveINSTALLDIR" Directory="INSTALLDIR" On="uninstall" />
       </Component>
       <Component Id="ShimExecutable" Guid="d4e5f6a7-b8c9-0123-def0-234567890123">
@@ -39,16 +43,19 @@
       </Component>
     </ComponentGroup>
 
+    <!-- 娣诲姞 INSTALLDIR 鍒?PATH锛堢敤浜庢壘鍒?pvm.exe锛?-->
     <Component Id="PathEnvVar" Directory="INSTALLDIR" Guid="b2c3d4e5-f6a7-8901-bcde-f12345678901">
       <RegistryValue Root="HKCU" Key="Software\pvm" Name="PathSet" Value="1" Type="string" KeyPath="yes" />
       <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]" Permanent="no" Part="last" Action="set" System="no" />
     </Component>
 
+    <!-- 娣诲姞 shims 鐩綍鍒?PATH锛堢敤浜庣増鏈垏鎹級 -->
     <Component Id="ShimsPathEnvVar" Directory="INSTALLDIR" Guid="c3d4e5f6-a7b8-9012-cdef-123456789012">
       <RegistryValue Root="HKCU" Key="Software\pvm" Name="ShimsPathSet" Value="1" Type="string" KeyPath="yes" />
       <Environment Id="SHIMS_PATH" Name="PATH" Value="[INSTALLDIR]shims" Permanent="no" Part="last" Action="set" System="no" />
     </Component>
 
+    <!-- 瀹夎瀹屾垚鍚庤嚜鍔ㄨ繍琛?pvm setup锛堝垱寤?~/.pvm 鐩綍缁撴瀯骞堕厤缃?PATH锛?-->
     <CustomAction Id="RunPvmSetup"
                   FileKey="PvmExe"
                   ExeCommand="setup --yes"
@@ -57,6 +64,7 @@
                   Return="ignore" />
 
     <InstallExecuteSequence>
+      <!-- 鍏堝嵏杞芥棫鐗堟湰锛堝惈鍚岀増鏈級锛屽啀瀹夎鏂扮増鏈?-->
       <RemoveExistingProducts After="InstallInitialize" />
       <Custom Action="RunPvmSetup" After="InstallFiles">NOT Installed OR REINSTALL</Custom>
     </InstallExecuteSequence>

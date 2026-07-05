@@ -141,9 +141,9 @@ func execBinary(bin string, args []string, env []string) error {
 		if cmd.Process != nil {
 			// Windows 下用 os.Kill 发送 CTRL+C
 			if runtime.GOOS == "windows" {
-				cmd.Process.Signal(os.Interrupt)
+				_ = cmd.Process.Signal(os.Interrupt)
 			} else {
-				cmd.Process.Signal(sig)
+				_ = cmd.Process.Signal(sig)
 			}
 		}
 	}()

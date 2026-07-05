@@ -18,10 +18,12 @@ import (
 
 // ReleaseRepo 是 pvm 发布仓库（构建时可通过 ldflags 覆盖）
 var ReleaseRepo = "lucky-zsh/pvm"
+
 const releaseBaseURL = "https://gitee.com/%s/releases/download/%s/%s"
 
 // runSelfUpdate 从 Gitee Releases 下载最新 pvm 覆盖当前二进制
 func runSelfUpdate(args []string) error {
+	_ = args // 目前不接受额外参数，保持签名一致性
 	logger.Info("  → Checking latest release of %s ...", ReleaseRepo)
 
 	tag, err := fetchLatestTag(ReleaseRepo)
@@ -67,7 +69,7 @@ func runSelfUpdate(args []string) error {
 		}
 		if err := os.Rename(tmp, target); err != nil {
 			// 回滚
-			os.Rename(backup, target)
+			_ = os.Rename(backup, target) // 忽略回滚错误
 			return fmt.Errorf("install new exe: %w", err)
 		}
 	} else {

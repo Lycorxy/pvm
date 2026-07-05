@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -39,13 +38,6 @@ func getJavaInfo(version, goos, goarch string) (*RuntimeInfo, error) {
 		tag, osStr, archStr,
 	)
 	return &RuntimeInfo{URL: url, ArchiveType: ext}, nil
-}
-
-// getJavaInfoMirror 镜像下载（清华 TUNA）
-// 注意：清华镜像目录结构与 Adoptium 不完全一致，这里降级使用 Adoptium API（其本身已是 CDN）
-func getJavaInfoMirror(version, goos, goarch string) (*RuntimeInfo, error) {
-	// Adoptium 本身就是全球 CDN，国内访问也较快，直接复用
-	return getJavaInfo(version, goos, goarch)
 }
 
 // javaTarget 返回 Adoptium API 期望的 (os, arch) 和文件扩展名
@@ -143,89 +135,11 @@ func resolveAdoptiumTag(version string) (string, error) {
 }
 
 // JavaCleanVersion 把 Java 版本号去掉 +build 后缀（用于安装目录命名）
-//   "21.0.5+11" -> "21.0.5"
-//   "21.0.5"    -> "21.0.5"
+//
+//	"21.0.5+11" -> "21.0.5"
+//	"21.0.5"    -> "21.0.5"
 func JavaCleanVersion(v string) string {
 	return stripBuild(v)
-}
-
-// listRemoteJava 列出 Adoptium 可用的 Java 版本
-func listRemoteJava() ([]VersionInfo, error) {
-	client := &http.Client{Timeout: 15 * time.Second}
-
-	// 1. 获取所有 LTS + 当前 feature 版本号
-	releasesURL := "https://api.adoptium.net/v3/info/available_releases"
-	resp, err := client.Get(releasesURL)
-	if err != nil {
-		return nil, fmt.Errorf("fetch java available releases: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var rel struct {
-		AvailableReleases    []int `json:"available_releases"`
-		AvailableLtsReleases []int `json:"available_lts_releases"`
-		MostRecentLts        int   `json:"most_recent_lts"`
-		MostRecentFeature    int   `json:"most_recent_feature_release"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil {
-		return nil, fmt.Errorf("parse java releases: %w", err)
-	}
-
-	ltsSet := make(map[int]bool)
-	for _, v := range rel.AvailableLtsReleases {
-		ltsSet[v] = true
-	}
-
-	// 2. 对每个 feature 版本，查询其最新的具体版本
-	var versions []VersionInfo
-	for _, major := range rel.AvailableReleases {
-		// 只取最新一个具体版本
-		apiURL := fmt.Sprintf(
-			"https://api.adoptium.net/v3/assets/feature_releases/%d/ga?image_type=jdk&jvm_impl=hotspot&page=0&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse",
-			major,
-		)
-		r, err := client.Get(apiURL)
-		if err != nil {
-			continue
-		}
-		body, _ := io.ReadAll(r.Body)
-		r.Body.Close()
-
-		var assets []struct {
-			ReleaseName string `json:"release_name"`
-			Timestamp   string `json:"timestamp"`
-			VersionData struct {
-				Semver string `json:"semver"`
-			} `json:"version_data"`
-		}
-		if err := json.Unmarshal(body, &assets); err != nil {
-			continue
-		}
-		if len(assets) == 0 {
-			continue
-		}
-		fullTag := strings.TrimPrefix(assets[0].ReleaseName, "jdk-")
-		// 安装目录使用 clean version（不含 +build），方便文件系统兼容
-		cleanVer := stripBuild(fullTag)
-		date := ""
-		if len(assets[0].Timestamp) >= 10 {
-			date = assets[0].Timestamp[:10]
-		}
-		versions = append(versions, VersionInfo{
-			Version: cleanVer,
-			LTS:     ltsSet[major],
-			Date:    date,
-		})
-	}
-
-	// 按主版本号降序排列
-	sort.Slice(versions, func(i, j int) bool {
-		mi := semver.Parse(stripBuild(versions[i].Version)).Major
-		mj := semver.Parse(stripBuild(versions[j].Version)).Major
-		return mi > mj
-	})
-
-	return versions, nil
 }
 
 // stripBuild 去除版本号末尾的 +N 部分

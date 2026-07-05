@@ -15,12 +15,12 @@ Write-Host "Version: $Version" -ForegroundColor Yellow
 New-Item -ItemType Directory -Path $PackagesDir -Force | Out-Null
 
 $packages = @(
-    @{ OS = "windows"; Arch = "amd64"; Ext = "exe"; Compress = "zip" },
-    @{ OS = "windows"; Arch = "arm64"; Ext = "exe"; Compress = "zip" },
-    @{ OS = "darwin";  Arch = "amd64"; Ext = "";    Compress = "zip" },
-    @{ OS = "darwin";  Arch = "arm64"; Ext = "";    Compress = "zip" },
-    @{ OS = "linux";   Arch = "amd64"; Ext = "";    Compress = "zip" },
-    @{ OS = "linux";   Arch = "arm64"; Ext = "";    Compress = "zip" }
+    @{ OS = "windows"; Arch = "amd64"; Ext = ".exe"; Compress = "zip" },
+    @{ OS = "windows"; Arch = "arm64"; Ext = ".exe"; Compress = "zip" },
+    @{ OS = "darwin";  Arch = "amd64"; Ext = "";     Compress = "zip" },
+    @{ OS = "darwin";  Arch = "arm64"; Ext = "";     Compress = "zip" },
+    @{ OS = "linux";   Arch = "amd64"; Ext = "";     Compress = "zip" },
+    @{ OS = "linux";   Arch = "arm64"; Ext = "";     Compress = "zip" }
 )
 
 foreach ($pkg in $packages) {
@@ -35,7 +35,7 @@ foreach ($pkg in $packages) {
     $tmpDir = Join-Path $PackagesDir "pvm-$os-$arch"
     New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
     
-    $destName = if ($ext -eq "exe") { "pvm.exe" } else { "pvm" }
+    $destName = if ($ext -eq ".exe") { "pvm.exe" } else { "pvm" }
     Copy-Item $exePath (Join-Path $tmpDir $destName) -Force
     
     foreach ($f in @("LICENSE", "README.md")) {

@@ -1,12 +1,14 @@
 package installer
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/pvm/pvm/internal/archive"
 	"github.com/pvm/pvm/internal/config"
@@ -372,7 +374,9 @@ func ensureShimsInPathUnix(shimsDir string) error {
 		if err != nil {
 			continue
 		}
-		f.WriteString("\n" + marker + "\n" + line + "\n")
+		if _, err := f.WriteString("\n" + marker + "\n" + line + "\n"); err != nil {
+			logger.Verbose("  write to %s failed: %v", filepath.Base(shellFile), err)
+		}
 		f.Close()
 		logger.Info("  ✓ Added to %s", filepath.Base(shellFile))
 	}
@@ -401,9 +405,9 @@ func UninstallTool(rt string) error {
 	if _, err := os.Lstat(currentDir); err == nil {
 		if runtime.GOOS == "windows" {
 			cmd := exec.Command("cmd", "/c", "rmdir", currentDir)
-			cmd.Run()
+			_ = cmd.Run() // 忽略错误
 		} else {
-			os.Remove(currentDir)
+			_ = os.Remove(currentDir)
 		}
 	}
 
@@ -570,16 +574,31 @@ func broadcastEnvChange() {
 		return
 	}
 	// 使用 PowerShell 发送 WM_SETTINGCHANGE 消息
-	cmd := exec.Command("powershell", "-Command",
-		"$HWND_BROADCAST = [IntPtr]0xffff; "+
-			"$WM_SETTINGCHANGE = 0x1a; "+
-			"Add-Type -TypeDefinition @'\n"+
-			"using System; using System.Runtime.InteropServices;\n"+
-			"public class Win32 { [DllImport(\"user32.dll\", SetLastError=true, CharSet=CharSet.Auto)] "+
-			"public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult); }\n"+
-			"'@\n"+
-			"[Win32]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref][UIntPtr]::Zero)")
-	cmd.Run() // 忽略错误
+	// 使用 -EncodedCommand 避免 $ 变量在某些 shell 环境中被替换
+	psScript := "$HWND_BROADCAST = [IntPtr]0xffff; " +
+		"$WM_SETTINGCHANGE = 0x1a; " +
+		"Add-Type -TypeDefinition @'\n" +
+		"using System; using System.Runtime.InteropServices;\n" +
+		"public class Win32 { [DllImport(\"user32.dll\", SetLastError=true, CharSet=CharSet.Auto)] " +
+		"public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult); }\n" +
+		"'@\n" +
+		"[Win32]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref][UIntPtr]::Zero)"
+	encodedCmd := encodePowerShellCommand(psScript)
+	cmd := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd)
+	_ = cmd.Run() // 忽略错误
+}
+
+// encodePowerShellCommand 将 PowerShell 脚本编码为 Base64（UTF-16LE）
+// 用于 -EncodedCommand 参数，避免 $ 变量在某些 shell 环境中被替换
+func encodePowerShellCommand(script string) string {
+	runes := []rune(script)
+	utf16Codes := utf16.Encode(runes)
+	buf := make([]byte, len(utf16Codes)*2)
+	for i, u := range utf16Codes {
+		buf[i*2] = byte(u)
+		buf[i*2+1] = byte(u >> 8)
+	}
+	return base64.StdEncoding.EncodeToString(buf)
 }
 
 // ============== 兼容性别名（保留旧的函数名，内部调用新实现）==============

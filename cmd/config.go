@@ -36,6 +36,7 @@ func runConfig(args []string) error {
 
 // configInit 初始化 .pvmrc 文件（基于当前活跃版本）
 func configInit(args []string) error {
+	_ = args // 目前不接受额外参数，保持签名一致性
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -102,6 +103,7 @@ func configInit(args []string) error {
 
 // configShow 显示当前 .pvmrc 的内容
 func configShow(args []string) error {
+	_ = args // 目前不接受额外参数，保持签名一致性
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err

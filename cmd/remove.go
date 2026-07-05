@@ -124,122 +124,122 @@ func runRemove(args []string) error {
 			}
 		}
 
-	for _, targetVer := range versionsToRemove {
-		// system 版本不是 pvm 管理的，无法卸载
-		if targetVer == config.SystemVersion {
-			logger.Error("  ! %s@system is managed by your OS/package manager, not pvm", rt)
-			continue
-		}
-
-		installDir := config.InstallDir(rt, targetVer)
-		installed := false
-		if _, err := os.Stat(installDir); err == nil {
-			installed = true
-		}
-
-		// 检查是否有任何配置引用这个版本
-		hasGlobalConfig := false
-		hasProjectConfig := false
-		globalFile := config.GlobalVersionsFile()
-		if vf, err := config.LoadVersionFile(globalFile); err == nil && vf != nil {
-			if gv, ok := vf.Versions[rt]; ok && gv == targetVer {
-				hasGlobalConfig = true
-			}
-		}
-		if vf, _ := config.FindVersionFile(cwd); vf != nil {
-			if pv, ok := vf.Versions[rt]; ok && pv == targetVer {
-				hasProjectConfig = true
-			}
-		}
-
-		// 如果既没有安装目录，也没有配置引用，则没有什么需要删除的
-		if !installed && !hasGlobalConfig && !hasProjectConfig && targetVer == "latest" {
-			logger.Info("  ℹ  %s is not managed by pvm (no installed versions found)", rt)
-			// 检查是否有系统版本
-			if sysVer, _ := config.ResolveVersion(rt, cwd); sysVer == config.SystemVersion {
-				logger.Info("  ℹ  Detected system %s - this version is managed by your OS, not pvm", rt)
-			}
-			continue
-		}
-
-		// 如果当前正在使用这个版本，拒绝（除非 --force）
-		active, _ := config.ResolveVersion(rt, cwd)
-		if active == targetVer && !force {
-			logger.Error("  ! %s@%s is currently active. Use --force to remove anyway.", rt, targetVer)
-			continue
-		}
-
-		// 跟踪是否有任何操作被执行
-		anyActionTaken := false
-
-		// ── 0. 检测并终止占用进程 ──
-		if installed {
-			if err := terminateBlockingProcesses(installDir, targetVer, forceKill); err != nil {
-				logger.Error("  ✗ %s", err)
+		for _, targetVer := range versionsToRemove {
+			// system 版本不是 pvm 管理的，无法卸载
+			if targetVer == config.SystemVersion {
+				logger.Error("  ! %s@system is managed by your OS/package manager, not pvm", rt)
 				continue
 			}
-		}
 
-		// ── 1. 删除物理安装目录 ──
-		if installed {
-			// 使用带重试的删除，处理文件占用问题
-			if err := removeWithRetry(installDir); err != nil {
-				logger.Error("  ✗ remove install dir: %v", err)
+			installDir := config.InstallDir(rt, targetVer)
+			installed := false
+			if _, err := os.Stat(installDir); err == nil {
+				installed = true
+			}
+
+			// 检查是否有任何配置引用这个版本
+			hasGlobalConfig := false
+			hasProjectConfig := false
+			globalFile := config.GlobalVersionsFile()
+			if vf, err := config.LoadVersionFile(globalFile); err == nil && vf != nil {
+				if gv, ok := vf.Versions[rt]; ok && gv == targetVer {
+					hasGlobalConfig = true
+				}
+			}
+			if vf, _ := config.FindVersionFile(cwd); vf != nil {
+				if pv, ok := vf.Versions[rt]; ok && pv == targetVer {
+					hasProjectConfig = true
+				}
+			}
+
+			// 如果既没有安装目录，也没有配置引用，则没有什么需要删除的
+			if !installed && !hasGlobalConfig && !hasProjectConfig && targetVer == "latest" {
+				logger.Info("  ℹ  %s is not managed by pvm (no installed versions found)", rt)
+				// 检查是否有系统版本
+				if sysVer, _ := config.ResolveVersion(rt, cwd); sysVer == config.SystemVersion {
+					logger.Info("  ℹ  Detected system %s - this version is managed by your OS, not pvm", rt)
+				}
 				continue
 			}
-			logger.Info("  ✓ removed install: %s", installDir)
-			anyActionTaken = true
 
-			// 尝试清理空的 runtime 根目录
-			rtRoot := filepath.Join(config.InstallsDir(), rt)
-			if entries, _ := os.ReadDir(rtRoot); len(entries) == 0 {
-				os.Remove(rtRoot)
+			// 如果当前正在使用这个版本，拒绝（除非 --force）
+			active, _ := config.ResolveVersion(rt, cwd)
+			if active == targetVer && !force {
+				logger.Error("  ! %s@%s is currently active. Use --force to remove anyway.", rt, targetVer)
+				continue
 			}
-		} else if targetVer != "latest" {
-			// 只有指定了具体版本时才显示 "not installed"
-			logger.Info("  ℹ  %s@%s is not installed (skipping install dir)", rt, targetVer)
-		}
 
-		// ── 2. 清理用户全局配置 ~/.pvm/versions ──
-		if hasGlobalConfig {
-			if err := config.RemoveGlobalVersion(rt); err == nil {
-				logger.Info("  ✓ removed from user config: %s", globalFile)
+			// 跟踪是否有任何操作被执行
+			anyActionTaken := false
+
+			// ── 0. 检测并终止占用进程 ──
+			if installed {
+				if err := terminateBlockingProcesses(installDir, targetVer, forceKill); err != nil {
+					logger.Error("  ✗ %s", err)
+					continue
+				}
+			}
+
+			// ── 1. 删除物理安装目录 ──
+			if installed {
+				// 使用带重试的删除，处理文件占用问题
+				if err := removeWithRetry(installDir); err != nil {
+					logger.Error("  ✗ remove install dir: %v", err)
+					continue
+				}
+				logger.Info("  ✓ removed install: %s", installDir)
 				anyActionTaken = true
+
+				// 尝试清理空的 runtime 根目录
+				rtRoot := filepath.Join(config.InstallsDir(), rt)
+				if entries, _ := os.ReadDir(rtRoot); len(entries) == 0 {
+					os.Remove(rtRoot)
+				}
+			} else if targetVer != "latest" {
+				// 只有指定了具体版本时才显示 "not installed"
+				logger.Info("  ℹ  %s@%s is not installed (skipping install dir)", rt, targetVer)
+			}
+
+			// ── 2. 清理用户全局配置 ~/.pvm/versions ──
+			if hasGlobalConfig {
+				if err := config.RemoveGlobalVersion(rt); err == nil {
+					logger.Info("  ✓ removed from user config: %s", globalFile)
+					anyActionTaken = true
+				} else {
+					logger.Error("  ✗ remove from user config: %v", err)
+				}
+			}
+
+			// ── 3. 清理当前项目配置 .pvmrc ──
+			if hasProjectConfig {
+				if path, err := config.RemoveProjectVersion(cwd, rt); err == nil && path != "" {
+					logger.Info("  ✓ removed from project config: %s", path)
+					anyActionTaken = true
+				} else if err != nil {
+					logger.Error("  ✗ remove from project config: %v", err)
+				}
+			}
+
+			// ── 4. 清理下载缓存 ──
+			cleanVersionCache(rt, targetVer)
+
+			// ── 5. 立即重建 shims（在循环内执行，确保每卸载一个版本就清理一次）──
+			logger.Info("  → Refreshing shims...")
+			if err := shim.Reshim(); err != nil {
+				if shim.IsReshimWarning(err) {
+					logger.Info("  ! reshim: %v (some files in use, will update on next run)", err)
+				} else {
+					logger.Error("  ! reshim failed: %v", err)
+				}
 			} else {
-				logger.Error("  ✗ remove from user config: %v", err)
+				logger.Info("  ✓ shims refreshed")
+			}
+
+			// 只有在实际执行了某些操作时才显示 "fully removed"
+			if anyActionTaken {
+				logger.Info("  ✓ %s@%s fully removed", rt, targetVer)
 			}
 		}
-
-		// ── 3. 清理当前项目配置 .pvmrc ──
-		if hasProjectConfig {
-			if path, err := config.RemoveProjectVersion(cwd, rt); err == nil && path != "" {
-				logger.Info("  ✓ removed from project config: %s", path)
-				anyActionTaken = true
-			} else if err != nil {
-				logger.Error("  ✗ remove from project config: %v", err)
-			}
-		}
-
-		// ── 4. 清理下载缓存 ──
-		cleanVersionCache(rt, targetVer)
-
-		// ── 5. 立即重建 shims（在循环内执行，确保每卸载一个版本就清理一次）──
-		logger.Info("  → Refreshing shims...")
-		if err := shim.Reshim(); err != nil {
-			if shim.IsReshimWarning(err) {
-				logger.Info("  ! reshim: %v (some files in use, will update on next run)", err)
-			} else {
-				logger.Error("  ! reshim failed: %v", err)
-			}
-		} else {
-			logger.Info("  ✓ shims refreshed")
-		}
-
-		// 只有在实际执行了某些操作时才显示 "fully removed"
-		if anyActionTaken {
-			logger.Info("  ✓ %s@%s fully removed", rt, targetVer)
-		}
-	}
 	}
 
 	// 最终再次重建 shims，确保完全清理
@@ -338,6 +338,10 @@ func terminateBlockingProcesses(installDir, version string, forceKill bool) erro
 		logger.Info("    ✓ Killed %s (PID %s)", displayName, p.pid)
 	}
 
+	if len(failedPIDs) > 0 {
+		logger.Error("  ⚠ Failed to terminate %d processes: %s", len(failedPIDs), strings.Join(failedPIDs, ", "))
+	}
+
 	if terminatedAny {
 		// 等待更长时间让文件句柄完全释放
 		logger.Info("  → Waiting for file handles to release...")
@@ -364,7 +368,7 @@ func terminateBlockingProcesses(installDir, version string, forceKill bool) erro
 	if len(finalCheck) > 0 {
 		// 还有进程占用，尝试再次终止
 		for _, p := range finalCheck {
-			exec.Command("taskkill", "/F", "/PID", p.pid).Run()
+			_ = exec.Command("taskkill", "/F", "/PID", p.pid).Run() // 忽略错误
 		}
 		time.Sleep(1 * time.Second)
 		logger.Info("  ✓ Secondary process termination completed")
@@ -652,7 +656,8 @@ if (-not $result) {
 }
 `, strings.ReplaceAll(path, `'`, `''`))
 
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", psScript)
+	encodedCmd := encodePowerShellCommand(psScript)
+	cmd := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd)
 	output, err := cmd.Output()
 	if err != nil {
 		return err

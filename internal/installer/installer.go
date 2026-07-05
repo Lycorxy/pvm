@@ -60,7 +60,7 @@ func Install(rt, version string, useMirror, force bool) (string, error) {
 	if err := lock.Lock(30 * time.Second); err != nil {
 		return "", fmt.Errorf("another install is in progress: %w", err)
 	}
-	defer lock.Unlock()
+	defer func() { _ = lock.Unlock() }()
 
 	installDir := config.InstallDir(rt, version)
 	binDir := config.BinDir(rt, version)
@@ -80,7 +80,7 @@ func Install(rt, version string, useMirror, force bool) (string, error) {
 		if !force {
 			// 即使目录存在，也要验证关键文件是否完整
 			// 防止之前安装不完整（如 npm 丢失）却被幂等跳过
-			if verr := verifyInstall(rt, version, binDir); verr != nil {
+			if verr := verifyInstall(rt, binDir); verr != nil {
 				logger.Info("  ⚠ %s@%s incomplete: %v, reinstalling...", rt, version, verr)
 				os.RemoveAll(installDir)
 			} else {
@@ -121,10 +121,20 @@ func Install(rt, version string, useMirror, force bool) (string, error) {
 	archiveName := fmt.Sprintf("%s-%s.%s", rt, version, info.ArchiveType)
 	archivePath := filepath.Join(cacheDir, archiveName)
 
-	// 如果缓存已存在，跳过下载
-	if _, err := os.Stat(archivePath); err == nil {
-		logger.Verbose("  → Using cached archive: %s", archivePath)
-	} else {
+	// 如果缓存已存在且完整（大于 1MB），跳过下载
+	// 小于 1MB 的文件可能是之前下载中断的不完整缓存
+	minCacheSize := int64(1024 * 1024) // 1 MB
+	useCache := false
+	if fi, err := os.Stat(archivePath); err == nil {
+		if fi.Size() >= minCacheSize {
+			logger.Verbose("  → Using cached archive: %s (%.1f MB)", archivePath, float64(fi.Size())/1024/1024)
+			useCache = true
+		} else {
+			logger.Verbose("  → Cached archive too small (%d bytes), re-downloading", fi.Size())
+			os.Remove(archivePath)
+		}
+	}
+	if !useCache {
 		if err := download.DownloadFile(info.URL, archivePath); err != nil {
 			// 主 URL 失败，尝试 FallbackURL
 			if info.FallbackURL != "" {
@@ -177,7 +187,7 @@ func Install(rt, version string, useMirror, force bool) (string, error) {
 			os.RemoveAll(extractTmp)
 			return "", fmt.Errorf("flatten pnpm: %w", err)
 		}
-		if err := generatePnpmWrappers(extractTmp, version); err != nil {
+		if err := generatePnpmWrappers(extractTmp); err != nil {
 			os.RemoveAll(extractTmp)
 			return "", fmt.Errorf("generate pnpm wrappers: %w", err)
 		}
@@ -275,7 +285,7 @@ func Install(rt, version string, useMirror, force bool) (string, error) {
 
 	// 安装后验证：检查核心可执行文件是否存在
 	// 不返回错误，因为某些 runtime 可能没有标准的 bin 目录结构（仅记录警告）
-	if err := verifyInstall(rt, version, binDir); err != nil {
+	if err := verifyInstall(rt, binDir); err != nil {
 		logger.Verbose("  ⚠ post-install verification: %v", err)
 	}
 
@@ -285,7 +295,7 @@ func Install(rt, version string, useMirror, force bool) (string, error) {
 // verifyInstall 安装后验证：检查核心可执行文件是否存在于 bin 目录
 // 用于尽早发现解压/flatten 异常导致的安装不完整问题
 // 返回 error 表示安装不完整（调用方可据此决定是否重装）
-func verifyInstall(rt, version, binDir string) error {
+func verifyInstall(rt, binDir string) error {
 	var exeName string
 	switch rt {
 	case "node":
@@ -339,7 +349,7 @@ func verifyInstall(rt, version, binDir string) error {
 }
 
 // generatePnpmWrappers 在 pnpm 安装目录的 bin/ 下生成可执行包装脚本
-func generatePnpmWrappers(installDir, version string) error {
+func generatePnpmWrappers(installDir string) error {
 	binDir := filepath.Join(installDir, "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		return err
@@ -440,7 +450,7 @@ func robustMove(src, dst string) error {
 	if err := os.Rename(src, dst); err == nil {
 		return nil
 	}
-	
+
 	// rename 失败，等待后重试（延迟逐渐增加）
 	delays := []time.Duration{
 		100 * time.Millisecond,
@@ -450,7 +460,7 @@ func robustMove(src, dst string) error {
 		2 * time.Second,
 		3 * time.Second,
 	}
-	
+
 	var lastErr error
 	for _, delay := range delays {
 		time.Sleep(delay)
@@ -460,7 +470,7 @@ func robustMove(src, dst string) error {
 			lastErr = err
 		}
 	}
-	
+
 	// rename 重试全部失败，尝试 copy + delete 作为最后手段
 	if copyErr := copyMove(src, dst); copyErr != nil {
 		return fmt.Errorf("rename failed: %v; copy fallback also failed: %v", lastErr, copyErr)

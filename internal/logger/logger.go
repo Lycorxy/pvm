@@ -52,3 +52,10 @@ func ProgressF(format string, args ...interface{}) {
 		fmt.Fprintf(os.Stderr, format, args...)
 	}
 }
+
+// Warn prints a warning message at normal level
+func Warn(format string, args ...interface{}) {
+	if currentLevel >= LevelNormal {
+		fmt.Fprintf(os.Stderr, "[warning] "+format+"\n", args...)
+	}
+}

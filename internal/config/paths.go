@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/pvm/pvm/internal/plugin"
 )
 
 // 支持的运行时
@@ -18,16 +20,16 @@ import (
 //	pipx install poetry
 var SupportedRuntimes = []string{
 	// 运行时（支持用户级、系统级、项目级）
-	"node", "python",
+	"node", "bun", "deno", "python",
 	// 包管理器（支持用户级、系统级、项目级）
 	"pnpm", "yarn",
 	// 工具（只支持用户级和系统级）
-	"go", "git",
+	"go", "git", "rust",
 }
 
 // GlobalOnlyRuntimes 只支持用户级和系统级安装的 runtime
 //
-// 这类工具（如 go/git）在实际场景中没有"项目 A 用 1.x、项目 B 用 2.x"
+// 这类工具（如 go/git/rust）在实际场景中没有"项目 A 用 1.x、项目 B 用 2.x"
 // 的强需求，全局装一份足以满足所有使用场景。约束如下：
 //  1. 不允许写入项目级 .pvmrc（只能 --user 全局）
 //  2. 同一时刻在 ~/.pvm/installs/<rt>/ 下只保留一个版本目录
@@ -35,7 +37,7 @@ var SupportedRuntimes = []string{
 //
 // 注：目录结构仍是 installs/<rt>/<version>/，这样不破坏 shim/Reshim 等
 // 通用扫描逻辑，仅靠"安装新版前先清空兄弟目录"来保证全局唯一性。
-var GlobalOnlyRuntimes = []string{"go", "git"}
+var GlobalOnlyRuntimes = []string{"go", "git", "rust"}
 
 // RuntimeDeps 描述包管理器对运行时的依赖关系
 // key 是包管理器，value 是它需要的运行时
@@ -46,23 +48,34 @@ var RuntimeDeps = map[string]string{
 }
 
 // IsGlobalOnly 判断某 runtime 是否只支持全局安装
+//
+// 同时检查静态列表和插件系统，确保向后兼容
 func IsGlobalOnly(rt string) bool {
+	// 检查静态列表（向后兼容）
 	for _, r := range GlobalOnlyRuntimes {
 		if r == rt {
 			return true
 		}
 	}
+	// 检查插件系统
+	if p := plugin.GetPlugin(rt); p != nil {
+		return p.IsGlobalOnly()
+	}
 	return false
 }
 
 // IsSupportedRuntime 判断是否是支持的运行时
+//
+// 同时检查静态列表和插件系统，确保向后兼容
 func IsSupportedRuntime(rt string) bool {
+	// 检查静态列表（向后兼容）
 	for _, r := range SupportedRuntimes {
 		if r == rt {
 			return true
 		}
 	}
-	return false
+	// 检查插件系统
+	return plugin.IsSupportedRuntime(rt)
 }
 
 // PvmHome 返回 pvm 根目录：
@@ -94,8 +107,6 @@ func ShimsDir() string {
 func InstallsDir() string {
 	return filepath.Join(PvmHome(), "installs")
 }
-
-
 
 // InstallDir 返回某个版本的安装目录 ~/.pvm/installs/<runtime>/<version>
 func InstallDir(rt string, version string) string {

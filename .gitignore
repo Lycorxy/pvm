@@ -1,2 +1,10 @@
 # Dependencies
 node_modules
+
+# Documentation site
+dockit
+
+# Build artifacts
+*.exe
+pvm
+pvm-shim-*

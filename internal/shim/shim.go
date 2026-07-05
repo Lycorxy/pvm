@@ -358,6 +358,17 @@ func FindRuntimeForCommand(cmdName string) string {
 			if hasExecutable(bin, cmdName) {
 				return rt
 			}
+			// Git for Windows: bash.exe/sh.exe 等在 bin/ 和 usr/bin/ 而非 cmd/
+			// 与 reshim 保持一致，也扫描这些目录
+			if rt == "git" && runtime.GOOS == "windows" {
+				installDir := config.InstallDir(rt, v.Name())
+				if hasExecutable(filepath.Join(installDir, "bin"), cmdName) {
+					return rt
+				}
+				if hasExecutable(filepath.Join(installDir, "usr", "bin"), cmdName) {
+					return rt
+				}
+			}
 		}
 	}
 	return ""

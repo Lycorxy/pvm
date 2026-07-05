@@ -50,8 +50,8 @@ func (w *windowsOps) removeFromPath(binHome, shimsDir string) error {
 	// 1c. 清理所有已知 pvm 安装路径的 PATH 条目
 	knownPvmDirs := findAllPvmInstallDirs()
 	for _, dir := range knownPvmDirs {
-		uninstallWindowsPath(dir, filepath.Join(dir, "shims"))
-		uninstallWindowsSystemPath(dir, filepath.Join(dir, "shims"))
+		_ = uninstallWindowsPath(dir, filepath.Join(dir, "shims"))       // 忽略错误
+		_ = uninstallWindowsSystemPath(dir, filepath.Join(dir, "shims")) // 忽略错误
 	}
 
 	// 1d. 清理 PowerShell Profile 中的 pvm 配置
@@ -69,11 +69,11 @@ func (w *windowsOps) removeFromPath(binHome, shimsDir string) error {
 // removePvmHome 清除 PVM_HOME 环境变量（用户级 + 系统级）
 func (w *windowsOps) removePvmHome() {
 	// 用户级
-	exec.Command("powershell", "-NoProfile", "-Command",
-		`[Environment]::SetEnvironmentVariable('PVM_HOME',$null,'User')`).Run()
+	_ = exec.Command("powershell", "-NoProfile", "-Command",
+		`[Environment]::SetEnvironmentVariable('PVM_HOME',$null,'User')`).Run() // 忽略错误
 	// 系统级（需要管理员，失败也不报错）
-	exec.Command("powershell", "-NoProfile", "-Command",
-		`[Environment]::SetEnvironmentVariable('PVM_HOME',$null,'Machine')`).Run()
+	_ = exec.Command("powershell", "-NoProfile", "-Command",
+		`[Environment]::SetEnvironmentVariable('PVM_HOME',$null,'Machine')`).Run() // 忽略错误
 	fmt.Println("  ✓ Cleared PVM_HOME environment variable")
 }
 
@@ -90,7 +90,7 @@ func (w *windowsOps) cleanPlatformSpecific() {
 
 // findExtraInstallDirs 查找额外可能存在的 pvm 安装目录
 func (w *windowsOps) findExtraInstallDirs(pvmHome string) []string {
-	return findAllPvmInstallDirs()
+	return findAllPvmInstalls(pvmHome)
 }
 
 // cleanupExtraInstallDir 清理额外的安装目录（可能需要延迟删除）
@@ -122,8 +122,8 @@ func (w *windowsOps) cleanupExtraInstallDir(dir, currentExe string) {
 			exeTargets,
 			dirEscaped, dirEscaped,
 		)
-		exec.Command("powershell", "-NoProfile", "-WindowStyle", "Hidden",
-			"-Command", psScript).Start()
+		_ = exec.Command("powershell", "-NoProfile", "-WindowStyle", "Hidden",
+			"-Command", psScript).Start() // 忽略错误，异步删除
 		fmt.Printf("  ✓ %s will be automatically deleted after this process exits.\n", dir)
 	} else {
 		fmt.Printf("  ✓ Removed %s\n", dir)
@@ -201,11 +201,10 @@ func killPvmProcesses() bool {
 		pid  string
 	}
 	var runningProcs []runningProc
-	seen := make(map[string]bool)
 
 	// 尝试最多3次检测，确保捕获所有相关进程
 	for attempt := 0; attempt < 3; attempt++ {
-		seen = make(map[string]bool)
+		seen := make(map[string]bool)
 		runningProcs = nil
 
 		// 方法一：用 tasklist 查询已知的运行时进程列表
@@ -395,6 +394,10 @@ func killPvmProcesses() bool {
 		fmt.Printf("    ✓ Killed %s (PID %s)\n", displayName, rp.pid)
 	}
 
+	if len(failedPIDs) > 0 {
+		fmt.Printf("  ⚠ Failed to terminate %d processes: %s\n", len(failedPIDs), strings.Join(failedPIDs, ", "))
+	}
+
 	if terminatedAny {
 		fmt.Println("  → Waiting for file handles to release...")
 		time.Sleep(1500 * time.Millisecond)
@@ -482,7 +485,8 @@ func uninstallWindowsPath(binHome, shimsDir string) error {
 		`'Win32'::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null`,
 		strings.ReplaceAll(newPath, `'`, `''`))
 
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", psScript)
+	encodedCmd := encodePowerShellCommand(psScript)
+	cmd := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd)
 	return cmd.Run()
 }
 
@@ -579,8 +583,9 @@ func cleanRegistry() {
 				}
 		}
 	`
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", psScript)
-	cmd.Run()
+	encodedCmd := encodePowerShellCommand(psScript)
+	cmd := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd)
+	_ = cmd.Run() // 忽略错误，尽力清理
 	fmt.Println("  ✓ Registry cleaned")
 }
 
@@ -650,7 +655,7 @@ func uninstallMsiProducts() {
 		if err != nil {
 			fmt.Printf("  ⚠ Silent uninstall failed, trying with UI...\n")
 			cmd2 := exec.Command("msiexec", "/x", productCode)
-			cmd2.Start()
+			_ = cmd2.Start() // 忽略错误，异步执行
 			_ = output
 		} else {
 			fmt.Printf("  ✓ Uninstalled MSI product: %s\n", displayName)
@@ -720,8 +725,8 @@ public class MoveFileEx {
 '@; [MoveFileEx]::MoveFileEx('%s', $null, 4) | Out-Null`,
 		strings.ReplaceAll(path, `'`, `''`),
 	)
-	exec.Command("powershell", "-NoProfile", "-WindowStyle", "Hidden",
-		"-Command", psCmd).Start()
+	_ = exec.Command("powershell", "-NoProfile", "-WindowStyle", "Hidden",
+		"-Command", psCmd).Start() // 忽略错误，异步删除
 }
 
 // extractPathFromUnlinkatError 从 "unlinkat <path>: <reason>" 格式的错误消息中提取路径
@@ -911,8 +916,9 @@ func cleanWslPvmConfig() {
 			}
 		}
 	`
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", psScript)
-	cmd.Run() // 尽力清理，忽略错误
+	encodedCmd := encodePowerShellCommand(psScript)
+	cmd := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd)
+	_ = cmd.Run() // 尽力清理，忽略错误
 }
 
 // removePvmPathEntriesGeneric 从 shell rc 内容中移除独立的包含 pvm 路径的 PATH 条目行

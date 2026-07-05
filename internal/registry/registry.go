@@ -47,6 +47,12 @@ func GetDownloadInfo(rt string, version string) (*RuntimeInfo, error) {
 		return getGitInfo(version, goos, goarch)
 	case "yarn":
 		return getYarnInfo(version)
+	case "rust":
+		return getRustInfo(version, goos, goarch)
+	case "bun":
+		return getBunInfo(version, goos, goarch)
+	case "deno":
+		return getDenoInfo(version, goos, goarch)
 	default:
 		return nil, fmt.Errorf("unsupported runtime: %s", rt)
 	}
@@ -500,6 +506,12 @@ func ListRemoteVersions(rt string, useMirror bool) ([]VersionInfo, error) {
 		return listRemoteGit()
 	case "yarn":
 		return listRemoteYarn(useMirror)
+	case "rust":
+		return listRemoteRust()
+	case "bun":
+		return listRemoteBun()
+	case "deno":
+		return listRemoteDeno()
 	default:
 		return nil, fmt.Errorf("unsupported runtime: %s", rt)
 	}
@@ -1158,6 +1170,12 @@ func GetMirrorURL(rt string, version string) (*RuntimeInfo, error) {
 		return getGitInfo(version, goos, goarch)
 	case "yarn":
 		return getYarnInfoMirror(version)
+	case "rust":
+		return getRustInfoMirror(version, goos, goarch)
+	case "bun":
+		return getBunInfoMirror(version, goos, goarch)
+	case "deno":
+		return getDenoInfoMirror(version, goos, goarch)
 	default:
 		return GetDownloadInfo(rt, version)
 	}

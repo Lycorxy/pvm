@@ -150,9 +150,9 @@ python -m pip %%*
 			}
 		}
 
-		shScript := fmt.Sprintf(`#!/bin/sh
+		shScript := `#!/bin/sh
 exec "$(dirname "$0")/python" -m pip "$@"
-`)
+`
 		if err := os.WriteFile(filepath.Join(binDir, name), []byte(shScript), 0755); err != nil {
 			return err
 		}

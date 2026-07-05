@@ -1,0 +1,81 @@
+run:
+  timeout: 5m
+  skip-dirs:
+    - dockit
+
+linters:
+  enable:
+    - errcheck
+    - staticcheck
+    - ineffassign
+    - unused
+    - gosimple
+
+linters-settings:
+  errcheck:
+    # 排除一些常见的不需要检查错误的情况
+    exclude-functions:
+      - fmt.Printf
+      - fmt.Println
+      - fmt.Print
+      - fmt.Sprintf
+      - fmt.Sscanf
+      - (*os.File).Close
+      - (*os.File).Seek
+      - (*bufio.Writer).Flush
+      - io.Copy
+      - io.CopyN
+
+issues:
+  # 排除预留的未来功能代码的 unused 检查
+  exclude-rules:
+    # registry 目录中的预留函数
+    - path: internal/registry/
+      linters:
+        - unused
+      text: "is unused"
+    
+    # internal/config 中的预留函数
+    - path: internal/config/
+      linters:
+        - unused
+      text: "getCurrentDir"
+    
+    # cmd 目录中的预留函数
+    - path: cmd/uninstall_windows.go
+      linters:
+        - unused
+      text: "findAllPvmInstalls"
+    
+    # uninstall_windows.go 中的可忽略错误（清理操作）
+    - path: cmd/uninstall_windows.go
+      linters:
+        - errcheck
+      text: "uninstallWindowsPath"
+    
+    - path: cmd/uninstall_windows.go
+      linters:
+        - errcheck
+      text: "uninstallWindowsSystemPath"
+    
+    - path: cmd/uninstall_windows.go
+      linters:
+        - errcheck
+      text: "Run"
+    
+    - path: cmd/uninstall_windows.go
+      linters:
+        - errcheck
+      text: "Start"
+    
+    - path: cmd/uninstall_windows.go
+      linters:
+        - ineffassign
+    
+    - path: cmd/uninstall_windows.go
+      linters:
+        - staticcheck
+
+output:
+  formats:
+    - format: colored-line-number

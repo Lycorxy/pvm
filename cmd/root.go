@@ -9,12 +9,16 @@ import (
 
 	"github.com/pvm/pvm/internal/config"
 	"github.com/pvm/pvm/internal/logger"
+	"github.com/pvm/pvm/internal/plugins"
 )
 
 // Version 是 pvm 自身版本号（构建时可被 ldflags 覆盖）
 var Version = "0.0.0"
 
 func Execute() error {
+	// 注册所有 runtime 插件
+	plugins.RegisterAll()
+
 	// Windows .exe shim 检测：
 	// 当 pvm.exe 被复制为 node.exe / npm.exe 等放在 shims 目录时，
 	// 通过 argv[0] 的文件名识别命令名，直接走 shim-exec 逻辑。
@@ -102,6 +106,15 @@ func Execute() error {
 		return runDiagnostics(args)
 	case "config", "cfg":
 		return runConfig(args)
+	case "git":
+		if len(args) > 0 && args[0] == "ssh" {
+			return runGitSSH(args[1:])
+		}
+		fmt.Fprintf(os.Stderr, "Unknown git subcommand: %s\n\n", args[0])
+		printGitSSHUsage()
+		return fmt.Errorf("unknown git subcommand: %s", args[0])
+	case "ssh-config":
+		return runGitSSH(args)
 	case "version", "-v", "--version":
 		fmt.Printf("pvm %s\n", Version)
 		return nil
@@ -144,6 +157,10 @@ System:
   uninstall            Uninstall pvm from this machine
   version              Show pvm version
   help                 Show this help
+
+Git SSH:
+  git ssh              Configure SSH for Git platforms (GitHub/GitLab/Gitee)
+  ssh-config           Alias for 'git ssh'
 
 Global flags:
   --verbose, -V        Show detailed output
