@@ -1,0 +1,55 @@
+name: Auto Tag
+
+# 推送到 master 时自动检测版本号，如果变了就自动打 tag
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - 'dockit/**'
+      - '*.md'
+
+permissions:
+  contents: write
+
+jobs:
+  auto-tag:
+    runs-on: ubuntu-latest
+    # 防止 tag push 触发自身导致循环
+    if: startsWith(github.ref, 'refs/heads/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 需要完整历史来比较 tags
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get version from code
+        id: version
+        run: |
+          VERSION=$(grep -oP 'Version\s*=\s*"\K[^"]+' cmd/root.go)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version in code: $VERSION"
+
+      - name: Check if tag already exists
+        id: check
+        run: |
+          TAG="v${{ steps.version.outputs.VERSION }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping."
+            echo "EXISTS=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG does not exist, will create."
+            echo "EXISTS=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create tag
+        if: steps.check.outputs.EXISTS == 'false' && steps.version.outputs.VERSION != '0.0.0'
+        run: |
+          TAG="v${{ steps.version.outputs.VERSION }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+          echo "✅ Created tag $TAG"

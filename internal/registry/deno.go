@@ -71,8 +71,74 @@ func denoTarget(goos, goarch string) (string, error) {
 	}
 }
 
-// listRemoteDeno 从 GitHub Releases API 获取 Deno 可用版本列表
-func listRemoteDeno() ([]VersionInfo, error) {
+// listRemoteDeno 获取 Deno 可用版本列表
+// useMirror=true 时优先使用 npmmirror 镜像，失败回退到 GitHub API
+func listRemoteDeno(useMirror bool) ([]VersionInfo, error) {
+	if useMirror {
+		if versions, err := listRemoteDenoMirror(); err == nil && len(versions) > 0 {
+			return versions, nil
+		}
+	}
+	return listRemoteDenoGitHub()
+}
+
+// listRemoteDenoMirror 从 npmmirror 目录 API 获取 Deno 版本列表
+// URL: https://registry.npmmirror.com/-/binary/deno/
+func listRemoteDenoMirror() ([]VersionInfo, error) {
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get("https://registry.npmmirror.com/-/binary/deno/")
+	if err != nil {
+		return nil, fmt.Errorf("fetch deno versions from mirror: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("npmmirror deno API returned %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// npmmirror 目录 API 返回: [{"name":"v1.40.0/","date":"..."},...]
+	var entries []struct {
+		Name string `json:"name"`
+		Date string `json:"date"`
+	}
+	if err := json.Unmarshal(body, &entries); err != nil {
+		return nil, err
+	}
+
+	var versions []VersionInfo
+	seen := make(map[string]bool)
+	for _, e := range entries {
+		// name 格式: "v1.40.0/"
+		ver := strings.TrimPrefix(e.Name, "v")
+		ver = strings.TrimSuffix(ver, "/")
+		// 跳过空值和预发版（含 -）
+		if ver == "" || strings.Contains(ver, "-") {
+			continue
+		}
+		if seen[ver] {
+			continue
+		}
+		seen[ver] = true
+		date := ""
+		if len(e.Date) >= 10 {
+			date = e.Date[:10]
+		}
+		versions = append(versions, VersionInfo{Version: ver, Date: date})
+	}
+
+	sort.Slice(versions, func(i, j int) bool {
+		return semver.Compare(semver.Parse(versions[i].Version), semver.Parse(versions[j].Version)) > 0
+	})
+
+	return versions, nil
+}
+
+// listRemoteDenoGitHub 从 GitHub Releases API 获取 Deno 可用版本列表
+func listRemoteDenoGitHub() ([]VersionInfo, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
 	req, _ := http.NewRequest("GET",
 		"https://api.github.com/repos/denoland/deno/releases?per_page=50", nil)

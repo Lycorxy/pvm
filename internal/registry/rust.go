@@ -79,8 +79,65 @@ func rustTarget(goos, goarch string) (string, error) {
 // rustReleaseRe 匹配 Rust GitHub release tag，如 "1.78.0"
 var rustReleaseRe = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 
-// listRemoteRust 从 rust-lang/rust 的 GitHub Releases API 获取版本列表
-func listRemoteRust() ([]VersionInfo, error) {
+// listRemoteRust 获取 Rust 可用版本列表
+// useMirror=true 时优先使用 rsproxy.cn 镜像，失败回退到 GitHub API
+func listRemoteRust(useMirror bool) ([]VersionInfo, error) {
+	if useMirror {
+		if versions, err := listRemoteRustMirror(); err == nil && len(versions) > 0 {
+			return versions, nil
+		}
+	}
+	return listRemoteRustGitHub()
+}
+
+// listRemoteRustMirror 从 rsproxy.cn 镜像获取 Rust 版本列表
+// rsproxy.cn 返回 HTML 目录列表，需要解析 <a> 标签
+func listRemoteRustMirror() ([]VersionInfo, error) {
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get("https://rsproxy.cn/dist/")
+	if err != nil {
+		return nil, fmt.Errorf("fetch rust versions from mirror: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("rsproxy API returned %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// rsproxy.cn 返回 HTML 目录列表，格式如:
+	// <a href="rust-1.78.0-x86_64-pc-windows-msvc.tar.gz">rust-1.78.0-x86_64-pc-windows-msvc.tar.gz</a>
+	html := string(body)
+	// 匹配 rust-<version>-<target>.tar.gz 格式的文件名
+	re := regexp.MustCompile(`rust-(\d+\.\d+\.\d+)-[a-z0-9_-]+\.tar\.gz`)
+	matches := re.FindAllStringSubmatch(html, -1)
+
+	var versions []VersionInfo
+	seen := make(map[string]bool)
+	for _, m := range matches {
+		if len(m) < 2 {
+			continue
+		}
+		ver := m[1]
+		if seen[ver] {
+			continue
+		}
+		seen[ver] = true
+		versions = append(versions, VersionInfo{Version: ver})
+	}
+
+	sort.Slice(versions, func(i, j int) bool {
+		return semver.Compare(semver.Parse(versions[i].Version), semver.Parse(versions[j].Version)) > 0
+	})
+
+	return versions, nil
+}
+
+// listRemoteRustGitHub 从 rust-lang/rust 的 GitHub Releases API 获取版本列表
+func listRemoteRustGitHub() ([]VersionInfo, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
 	req, _ := http.NewRequest("GET",
 		"https://api.github.com/repos/rust-lang/rust/releases?per_page=50", nil)

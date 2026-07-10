@@ -1,5 +1,89 @@
 {
+    // ========== 编辑器基础 ==========
+    "editor.formatOnPaste": true, // 粘贴内容时自动格式化
+    "editor.formatOnSave": true, // 保存文件时自动格式化（由默认 formatter 执行，通常是 Prettier）
+
+    // ========== ESLint ==========
+    "eslint.enable": true, // 启用 ESLint 扩展
+    "editor.codeActionsOnSave": {
+        // 保存时自动执行 ESLint --fix，修复可自动修复的问题（格式、未使用变量等）
+        // "explicit" 是 VSCode 1.79+ 新值，等同于旧版 true，语义更明确
+        "source.fixAll.eslint": "explicit",
+        // 保存时自动执行 Stylelint --fix，修复 CSS/SCSS 规范问题
+        "source.fixAll.stylelint": "explicit"
+    },
+    // ESLint 扩展 v3 推荐配置：只在列出的语言中启用 ESLint
+    "eslint.probe": [
+        "javascript",
+        "javascriptreact",
+        "typescript",
+        "typescriptreact",
+        "html",
+        "markdown",
+        "json",
+        "jsonc",
+        "json5"
+    ],
+
+    // ========== 各语言默认格式化器 ==========
+    "[scss]": {
+        "editor.defaultFormatter": "stylelint.vscode-stylelint" // SCSS 用 Stylelint 格式化
+    },
+    "[css]": {
+        "editor.defaultFormatter": "stylelint.vscode-stylelint" // CSS 用 Stylelint 格式化
+    },
+    "[markdown]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode" // 强制 .md 文件用 Prettier
+    },
+    "[mdx]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode" // 强制 .mdx 文件用 Prettier
+    },
+
+    // ========== Stylelint ==========
+    "stylelint.validate": ["css", "scss", "sass", "postcss"], // Stylelint 检查的文件类型
+    "css.validate": false, // 禁用 VSCode 内置 CSS 检查（避免与 Stylelint 冲突）
+    "less.validate": false, // 禁用内置 LESS 检查
+    "scss.validate": false, // 禁用内置 SCSS 检查
+
+    // ========== 文件与搜索 ==========
+    "files.eol": "\n", // 统一换行符为 LF（避免 Windows 的 CRLF 导致跨平台差异）
+    "search.exclude": { // 搜索时排除这些目录，加速搜索结果
+        "**/.git": true,
+        "**/.pnpm": true,
+        "**/.vscode": true,
+        "**/dist/**": true,
+        "**/node_modules": true,
+        "**/pnpm-lock.yaml": true
+    },
+
+    // ========== TypeScript ==========
+    "js/ts.tsdk.path": "node_modules/typescript/lib", // 使用工作区内的 TS 版本而非 VSCode 内置版本（替代已弃用的 typescript.tsdk）
+    "js/ts.tsdk.promptToUseWorkspaceVersion": true, // 提示使用工作区的 TS 版本（替代已弃用的 typescript.enablePromptUseWorkspaceTsdk）
+
+    // ========== 资源管理器 ==========
+    "explorer.sortOrder": "default", // 文件排序方式：默认（按名称）
+    "explorer.compactFolders": false, // 不压缩单子文件夹（避免 a/b/c 合并显示为一行）
+    "json.schemaDownload.enable": true, // 允许自动下载 JSON Schema 用于智能提示
+    "workbench.tree.indent": 16, // 树形视图缩进像素数
+
+    // ========== JSON Schema ==========
+    "json.schemas": [
+        {
+          "fileMatch": ["package.json"],
+          "url": "https://json.schemastore.org/package",
+          "schema": true
+        }
+      ],
+
+    // ========== Prettier ==========
+    "prettier.requireConfig": true, // 必须存在 .prettierrc 配置文件才生效，防止裸跑
+    "prettier.resolveGlobalModules": false, // 不使用全局安装的 Prettier 插件
+
+    // ========== 智能提示 ==========
     "editor.quickSuggestions": {
+        // 在字符串内部也启用智能提示（默认 off）
+        // 作用：字符串里写文件路径、CSS 类名、import 路径时能自动补全
         "strings": "on"
     }
+
 }

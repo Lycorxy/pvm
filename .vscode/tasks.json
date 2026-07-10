@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Helm Desktop — 下载安装并启动",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}\\scripts\\download-and-launch.ps1"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": [],
+      "detail": "下载 Helm Desktop 安装包 → 静默安装 → 启动应用"
+    },
+    {
+      "label": "Helm Desktop — 启动（已安装）",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-Command",
+        "$exe = \"$env:LOCALAPPDATA\\helm-desktop\\helm-desktop.exe\"; if (Test-Path $exe) { Start-Process $exe; Write-Host '✅ 已启动 Helm Desktop' } else { Write-Host '❌ 未找到，请先安装'; exit 1 }"
+      ],
+      "group": "none",
+      "presentation": {
+        "echo": true,
+        "reveal": "never",
+        "focus": false,
+        "panel": "dedicated"
+      },
+      "problemMatcher": [],
+      "detail": "直接启动已安装的 Helm Desktop"
+    }
+  ]
+}

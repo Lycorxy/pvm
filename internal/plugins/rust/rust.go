@@ -2,18 +2,11 @@
 package rust
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"regexp"
-	"sort"
-	"strings"
-	"time"
 
 	"github.com/pvm/pvm/internal/plugin"
 	"github.com/pvm/pvm/internal/registry"
-	"github.com/pvm/pvm/internal/semver"
 )
 
 const name = "rust"
@@ -102,63 +95,7 @@ var rustReleaseRe = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 
 // ListRemoteVersions 返回 Rust 可用版本列表
 func (p *RustPlugin) ListRemoteVersions(stableOnly bool) ([]registry.VersionInfo, error) {
-	client := &http.Client{Timeout: 15 * time.Second}
-	req, _ := http.NewRequest("GET",
-		"https://api.github.com/repos/rust-lang/rust/releases?per_page=50", nil)
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "pvm")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetch rust versions: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var releases []struct {
-		TagName     string `json:"tag_name"`
-		PublishedAt string `json:"published_at"`
-		Prerelease  bool   `json:"prerelease"`
-		Draft       bool   `json:"draft"`
-	}
-	if err := json.Unmarshal(body, &releases); err != nil {
-		return nil, err
-	}
-
-	var versions []registry.VersionInfo
-	seen := make(map[string]bool)
-	for _, r := range releases {
-		if r.Prerelease || r.Draft {
-			continue
-		}
-		ver := strings.TrimPrefix(r.TagName, "v")
-		if !rustReleaseRe.MatchString(ver) {
-			continue
-		}
-		if seen[ver] {
-			continue
-		}
-		seen[ver] = true
-		date := ""
-		if len(r.PublishedAt) >= 10 {
-			date = r.PublishedAt[:10]
-		}
-		versions = append(versions, registry.VersionInfo{Version: ver, Date: date})
-	}
-
-	sort.Slice(versions, func(i, j int) bool {
-		return semver.Compare(semver.Parse(versions[i].Version), semver.Parse(versions[j].Version)) > 0
-	})
-
-	return versions, nil
+	return registry.ListRemoteVersions(name, !stableOnly)
 }
 
 // Install 安装 Rust

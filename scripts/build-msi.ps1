@@ -174,16 +174,16 @@ $wxsContent = @"
       </Component>
     </ComponentGroup>
 
-    <!-- 添加 INSTALLDIR 到 PATH（用于找到 pvm.exe） -->
+    <!-- 添加 INSTALLDIR 到 PATH（用于找到 pvm.exe）- 前置以确保优先级高于系统层已安装的 runtime -->
     <Component Id="PathEnvVar" Directory="INSTALLDIR" Guid="b2c3d4e5-f6a7-8901-bcde-f12345678901">
       <RegistryValue Root="HKCU" Key="Software\pvm" Name="PathSet" Value="1" Type="string" KeyPath="yes" />
-      <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]" Permanent="no" Part="last" Action="set" System="no" />
+      <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]" Permanent="no" Part="first" Action="set" System="no" />
     </Component>
 
-    <!-- 添加 shims 目录到 PATH（用于版本切换） -->
+    <!-- 添加 shims 目录到 PATH（用于版本切换）- 前置以确保最高优先级 -->
     <Component Id="ShimsPathEnvVar" Directory="INSTALLDIR" Guid="c3d4e5f6-a7b8-9012-cdef-123456789012">
       <RegistryValue Root="HKCU" Key="Software\pvm" Name="ShimsPathSet" Value="1" Type="string" KeyPath="yes" />
-      <Environment Id="SHIMS_PATH" Name="PATH" Value="[INSTALLDIR]shims" Permanent="no" Part="last" Action="set" System="no" />
+      <Environment Id="SHIMS_PATH" Name="PATH" Value="[INSTALLDIR]shims" Permanent="no" Part="first" Action="set" System="no" />
     </Component>
 
     <!-- 安装完成后自动运行 pvm setup（创建 ~/.pvm 目录结构并配置 PATH） -->

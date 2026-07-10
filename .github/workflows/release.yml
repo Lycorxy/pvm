@@ -32,11 +32,20 @@ jobs:
       - name: Package
         run: .\scripts\package.ps1 -Version ${{ steps.version.outputs.VERSION }}
 
-      - name: Upload artifacts
+      - name: Build MSI
+        run: .\scripts\build-msi.ps1 -Version ${{ steps.version.outputs.VERSION }}
+
+      - name: Upload zip packages
         uses: actions/upload-artifact@v4
         with:
           name: packages
           path: dist/packages/
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: msi
+          path: dist/pvm-windows-*.msi
 
       - name: Upload checksums
         uses: actions/upload-artifact@v4
@@ -54,11 +63,24 @@ jobs:
           name: packages
           path: packages/
 
+      - name: Download MSI
+        uses: actions/download-artifact@v4
+        with:
+          name: msi
+          path: msi/
+
       - name: Download checksums
         uses: actions/download-artifact@v4
         with:
           name: checksums
           path: .
+
+      # 用脚本获取 MSI 文件名，方便写 Release body
+      - name: Get MSI filename
+        id: msi
+        run: |
+          MSI_FILE=$(ls msi/pvm-windows-*.msi | head -1)
+          echo "MSI_NAME=$(basename "$MSI_FILE")" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -67,7 +89,13 @@ jobs:
           body: |
             ## PVM ${{ github.ref_name }}
 
-            ### Downloads
+            ### Windows 安装包（推荐）
+
+            | 类型 | 说明 | 下载 |
+            |------|------|------|
+            | MSI 安装包 | 双击安装，自动配置 PATH | [pvm-${{ github.ref_name }}-windows-amd64.msi](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/pvm-${{ github.ref_name }}-windows-amd64.msi) |
+
+            ### 平台二进制包
 
             | Platform | Arch | File |
             |----------|------|------|
@@ -78,27 +106,38 @@ jobs:
             | Linux | x64 | `pvm-${{ github.ref_name }}-linux-amd64.zip` |
             | Linux | ARM64 | `pvm-${{ github.ref_name }}-linux-arm64.zip` |
 
-            ### Install
+            ### 安装
 
+            **Windows（推荐 MSI 安装包）：**
             ```powershell
-            # Windows (PowerShell)
+            # 下载上方 MSI 文件，双击安装
+            # 或通过命令行安装：
+            msiexec /i pvm-${{ github.ref_name }}-windows-amd64.msi /quiet
+            ```
+
+            **Windows (PowerShell)：**
+            ```powershell
             irm https://get.pvm.dev | iex
             ```
 
+            **macOS / Linux：**
             ```bash
-            # macOS/Linux
             curl -fsSL https://get.pvm.dev | sh
             ```
 
-            ### Checksums
+            ### 校验
 
-            See `checksums.txt` for SHA256 hashes.
+            下载后验证文件完整性：
+            ```bash
+            sha256sum -c checksums.txt
+            ```
 
             ---
 
             **Full Changelog**: https://github.com/${{ github.repository }}/compare/v0.0.0...${{ github.ref_name }}
           files: |
             packages/*
+            msi/*
             checksums.txt
           draft: false
           prerelease: false

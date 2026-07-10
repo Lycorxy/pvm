@@ -202,7 +202,7 @@ func runUse(args []string) error {
 	return nil
 }
 
-// warnIfShimsNotInPath 检查 shims 目录是否生效，未生效则给出醒目提示
+// warnIfShimsNotInPath 检查 shims 目录是否生效，未生效则自动修复或给出醒目提示
 // 复用 doctor 中的 checkShimsInPath，避免重复实现
 func warnIfShimsNotInPath() {
 	ok, msg := checkShimsInPath()
@@ -213,8 +213,17 @@ func warnIfShimsNotInPath() {
 	logger.Info("  ⚠  WARNING: pvm shims are not effective on your PATH")
 	logger.Info("     reason: %s", msg)
 	logger.Info("     The version you just set will NOT take effect until this is fixed.")
+
 	if runtime.GOOS == "windows" {
-		logger.Info("     → Right-click terminal → Run as administrator → run: pvm setup")
+		// Windows: 自动尝试修复（会弹出 UAC 提示框）
+		logger.Info("     → Auto-fixing... (Administrator permission required)")
+		conflictDirNames := []string{"nodejs", "node", "nvm", "python", "go", "golang", "ruby", "rubydevkit"}
+		if err := fixSystemPathConflicts(conflictDirNames); err != nil {
+			logger.Info("     ⚠ Auto-fix failed: %v", err)
+			logger.Info("     → Please manually run: pvm setup")
+		} else {
+			logger.Info("     ✓ Fixed! Please reopen your terminal/editor.")
+		}
 	} else {
 		logger.Info("     → Run: pvm setup     (then reopen the terminal)")
 	}

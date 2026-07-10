@@ -14,6 +14,62 @@ import (
 	"github.com/pvm/pvm/internal/logger"
 )
 
+// isElevated checks if current process is running with administrator privileges (Windows only)
+func isElevated() bool {
+	if runtime.GOOS != "windows" {
+		return false
+	}
+	out, err := exec.Command("powershell", "-NoProfile", "-Command",
+		"([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)").Output()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(out)) == "True"
+}
+
+// runAsAdmin relaunches pvm with administrator privileges (shows UAC prompt)
+// Used to auto-fix system-level PATH conflicts that require admin rights
+func runAsAdmin(args []string) error {
+	if runtime.GOOS != "windows" {
+		return fmt.Errorf("elevation only supported on Windows")
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("cannot get executable path: %w", err)
+	}
+
+	// Build argument list: original args + --elevated flag (prevent infinite loop)
+	cmdArgs := append([]string{}, args...)
+	alreadyElevated := false
+	for _, a := range cmdArgs {
+		if a == "--elevated" {
+			alreadyElevated = true
+			break
+		}
+	}
+	if !alreadyElevated {
+		cmdArgs = append(cmdArgs, "--elevated")
+	}
+
+	// Use ShellExecuteW with runas verb (shows UAC dialog)
+	argStr := strings.Join(cmdArgs, " ")
+	psCmd := "Start-Process -FilePath '" + exe + "' -ArgumentList '" + argStr + "' -Verb Runas -Wait"
+	encoded := encodePowerShellCommand(psCmd)
+	cmd := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encoded)
+
+	logger.Info("")
+	logger.Info("  -> System PATH conflict detected. Requesting administrator permission...")
+	logger.Info("    (A UAC prompt will appear - please click 'Yes')")
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("elevation failed (user declined or error): %w", err)
+	}
+
+	logger.Info("  OK System PATH fixed with administrator privileges")
+	return nil
+}
+
 // runSetup 执行首次安装设置：
 //  1. 创建 ~/.pvm 标准目录
 //  2. 将 pvm 二进制复制到 ~/.pvm/bin/pvm
@@ -163,14 +219,24 @@ func runSetup(args []string) error {
 	}
 	fmt.Println()
 
-	// ---- 完成 ----
-	fmt.Println("  ═════════════════════════════════════════════")
-	fmt.Println("  ✓ pvm setup complete!")
-	fmt.Println("  ═════════════════════════════════════════════")
+	// ---- Done ----
+	fmt.Println("  =======================================")
+	fmt.Println("  OK pvm setup complete!")
+	fmt.Println("  =======================================")
 	fmt.Println()
 	fmt.Println("  Next steps:")
 	if runtime.GOOS == "windows" {
 		fmt.Println("    1. Close and reopen your terminal (PowerShell/CMD)")
+		fmt.Println()
+		fmt.Println("  !! Important for VS Code / CodeBuddy / other editors:")
+		fmt.Println("     Editors cache environment variables at startup.")
+		fmt.Println("     You MUST fully restart (not just reload window):")
+		fmt.Println("       * VS Code: File -> Exit (or kill all Code processes in Task Manager)")
+		fmt.Println("       * Then reopen VS Code - pvm will work in integrated terminal")
+		fmt.Println()
+		fmt.Println("     Quick verify after reopening editor terminal:")
+		fmt.Println("       pvm -v        # should show version")
+		fmt.Println("       pvm doctor   # should show all checks passed OK")
 	} else {
 		shellName := filepath.Base(os.Getenv("SHELL"))
 		if shellName == "" {
@@ -178,6 +244,7 @@ func runSetup(args []string) error {
 		}
 		fmt.Printf("    1. Restart your shell (or: source ~/.%src)\n", shellName)
 	}
+	fmt.Println()
 	fmt.Println("    2. pvm install node@20.11.0")
 	fmt.Println("    3. pvm doctor              # verify installation")
 	fmt.Println()
@@ -499,15 +566,16 @@ func detectVersionManagers(conflictPaths []string) map[string]string {
 	return result
 }
 
-// fixSystemPathConflicts 检测系统级 PATH 中的冲突目录，提供多种修复方案
-// 优先级：1) 卸载冲突工具 2) MSI/安装器无法修改系统 PATH（无管理员权限）
+// fixSystemPathConflicts detects system-level PATH conflicts and auto-fixes them
+// Strategy: if running as admin -> directly modify system PATH to move conflicting paths to end
+//            if not admin -> auto-elevate via UAC prompt to re-run setup with admin rights
 func fixSystemPathConflicts(conflictDirNames []string) error {
 	sysPath, err := exec.Command("powershell", "-NoProfile", "-Command",
-		`[Environment]::GetEnvironmentVariable('Path','Machine')`).Output()
+		"[Environment]::GetEnvironmentVariable('Path','Machine')").Output()
 	if err != nil {
-		return nil // 无法读取系统 PATH，忽略
+		return nil // cannot read system PATH, skip
 	}
-	sysPathStr := strings.TrimRight(string(sysPath), "\r\n") // 去掉 \r\n
+	sysPathStr := strings.TrimRight(string(sysPath), "\r\n")
 
 	sysEntries := splitPath(sysPathStr)
 	var sysConflicts []string
@@ -523,69 +591,123 @@ func fixSystemPathConflicts(conflictDirNames []string) error {
 	}
 
 	if len(sysConflicts) == 0 {
-		return nil // 无冲突
+		return nil // no conflicts
 	}
 
 	fmt.Println()
-	logger.Info("  ⚠ Conflicting runtime paths found in SYSTEM PATH:")
+	logger.Info("  !! Conflicting runtime paths found in SYSTEM PATH:")
 	for _, c := range sysConflicts {
-		logger.Info("    - %s", c)
+		logger.Info("     - %s", c)
 	}
-	logger.Info("  These system paths override pvm shims, causing `pvm use` to have no effect.")
+	logger.Info("  These system paths override pvm shims.")
 	fmt.Println()
 
-	// 识别具体是哪个版本管理工具，给出针对性卸载建议
-	detected := detectVersionManagers(sysConflicts)
-	if len(detected) > 0 {
-		logger.Info("  ⚠ Detected conflicting version managers:")
-		for tool := range detected {
-			logger.Info("    • %s is installed and conflicts with pvm", tool)
-		}
-		fmt.Println()
+	// Check if already running as administrator
+	if isElevated() {
+		// Already admin: directly fix system PATH
+		logger.Info("  OK Running as Administrator - auto-fixing system PATH...")
+		return fixSystemPathDirectly(sysEntries, sysConflicts)
 	}
 
-	logger.Info("  💡 Recommended Fix (3 Options, in order of preference):")
+	// Not admin: auto-elevate
+	logger.Info("  >> Auto-fixing by requesting administrator permission...")
+	logger.Info("    (A UAC prompt will appear - please click 'Yes')")
 	fmt.Println()
 
-	// Option A：卸载冲突工具
-	if len(detected) > 0 {
-		logger.Info("  [A] Uninstall the conflicting tool(s) [RECOMMENDED]:")
-		for tool, guide := range detected {
-			logger.Info("      %s: %s", tool, guide)
-		}
-		fmt.Println()
+	if err := runAsAdmin([]string{"setup"}); err != nil {
+		// Elevation failed (user declined or error), show manual steps
+		logger.Info("  !! Auto-fix cancelled. Manual steps required:")
+		return printManualFixGuide(sysConflicts)
 	}
 
-	// Option B：使用项目级版本控制（完全不需要管理员权限）
-	logger.Info("  [B] Use project-level version control (no admin needed):")
-	logger.Info("      1. Create .pvmrc in your project root:")
-	logger.Info("         pvm current --save          # auto-generates .pvmrc")
-	logger.Info("      2. Or manually in .pvmrc:")
-	logger.Info("         node=20.11.0")
-	logger.Info("         python=3.12.0")
-	logger.Info("      3. Team members auto-load versions from .pvmrc")
-	fmt.Println()
-
-	// Option C：修改 MSI 配置文件（纯工作区隔离）
-	logger.Info("  [C] Isolate versions in specific workspaces (no admin needed):")
-	logger.Info("      pvm use node@20 --local")
-	logger.Info("      pvm use python@3.12 --local")
-	fmt.Println()
-
-	// Option D：手动修改系统 PATH（需要管理员权限，仅作参考）
-	logger.Info("  [D] Manually remove from SYSTEM PATH (requires Administrator):")
-	logger.Info("      1. Right-click Start → System → Advanced system settings")
-	logger.Info("      2. Environment Variables → System variables → Path → Edit")
-	logger.Info("      3. Remove conflicting entries and click OK")
-	logger.Info("      4. Reopen terminal for changes to take effect")
-	fmt.Println()
-
-	// 特别说明：MSI 不具有管理员权限
-	logger.Info("  ℹ Note: pvm installed via MSI does not have admin privileges.")
-	logger.Info("    Options A, B, C do not require admin and work from any terminal.")
-	logger.Info("    Option D requires running terminal as Administrator.")
-
+	logger.Info("  OK System PATH conflicts resolved!")
 	return nil
+}
+
+// fixSystemPathDirectly modifies system-level PATH with admin privileges
+// Moves conflicting runtime directories to the end of system PATH
+func fixSystemPathDirectly(sysEntries, sysConflicts []string) error {
+	conflictSet := make(map[string]bool)
+	for _, c := range sysConflicts {
+		conflictSet[filepath.Clean(c)] = true
+	}
+
+	// Filter: separate non-conflicting and conflicting paths
+	var nonConflict []string
+	var movedConflicts []string
+
+	for _, e := range sysEntries {
+		cleaned := filepath.Clean(e)
+		if conflictSet[cleaned] {
+			movedConflicts = append(movedConflicts, e)
+		} else {
+			nonConflict = append(nonConflict, e)
+		}
+	}
+
+	// Put conflicting paths at the end (user PATH shims will take priority)
+	newEntries := append(nonConflict, movedConflicts...)
+	newPath := joinPath(newEntries)
+
+	// Write to system-level PATH and broadcast change
+	escapedPath := escapePowerShellString(newPath)
+	psScript := "$newPath = '" + escapedPath + "'; " +
+		"[Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine'); " +
+		"Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; ' + " +
+		"'public class Win32Helper { [DllImport(\"user32.dll\", SetLastError=true, CharSet=CharSet.Auto)] ' + " +
+		"'public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, ' + " +
+		"'uint fuFlags, uint uTimeout, out UIntPtr lpdwResult); }' -ErrorAction SilentlyContinue; " +
+		"try { $HWND_BROADCAST = [IntPtr]0xffff; $WM_SETTINGCHANGE = 0x001A; $result = [UIntPtr]::Zero; " +
+		"'Win32Helper'::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null } catch {}"
+	encodedCmd := encodePowerShellCommand(psScript)
+	cmd := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd)
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to update system PATH: %w", err)
+	}
+
+	if len(movedConflicts) > 0 {
+		logger.Info("  OK Moved %d conflicting path(s) to end of system PATH:", len(movedConflicts))
+		for _, c := range movedConflicts {
+			logger.Info("      - %s", c)
+		}
+	}
+	return nil
+}
+
+// printManualFixGuide shows manual repair steps when auto-elevation fails
+func printManualFixGuide(sysConflicts []string) error {
+	detected := detectVersionManagers(sysConflicts)
+
+	if len(detected) > 0 {
+		logger.Info("  Detected conflicting version managers:")
+		for tool := range detected {
+			logger.Info("    * %s is installed and conflicts with pvm", tool)
+		}
+		fmt.Println()
+	}
+
+	logger.Info("  Option A - Uninstall the conflicting tool(s) [Recommended]:")
+	for tool, guide := range detected {
+		logger.Info("      %s: %s", tool, guide)
+	}
+	fmt.Println()
+
+	logger.Info("  Option B - Manually remove from SYSTEM PATH (requires Administrator):")
+	logger.Info("      1. Right-click Start -> System -> Advanced system settings")
+	logger.Info("      2. Environment Variables -> System variables -> Path -> Edit")
+	logger.Info("      3. Remove or move down these entries:")
+	for _, c := range sysConflicts {
+		logger.Info("         - %s", c)
+	}
+	logger.Info("      4. Click OK and reopen your terminal")
+	fmt.Println()
+
+	logger.Info("  Option C - Retry auto-fix: run this command in Administrator terminal:")
+	logger.Info("      pvm setup")
+	fmt.Println()
+
+	return fmt.Errorf("system PATH conflicts require manual intervention")
 }
 
 // setupUnixPath 在 macOS/Linux 上将 pvm 配置写入 shell rc 文件

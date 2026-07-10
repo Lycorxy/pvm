@@ -10,14 +10,16 @@ on:
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
+# GitHub Pages 部署的关键权限
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# 关键：不能取消正在进行的部署！必须为 false
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -25,28 +27,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          fetch-depth: 0  # rspress 主题可能需要 git 历史
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'dockit/pnpm-lock.yaml'
+
       - name: Install dependencies
         working-directory: dockit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build docs
         working-directory: dockit
         run: pnpm build
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          # Rspress 2.x 默认输出目录是 doc_build
           path: dockit/doc_build
 
   deploy:

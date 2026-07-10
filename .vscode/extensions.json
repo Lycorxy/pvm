@@ -1,0 +1,11 @@
+{
+    "recommendations": [ "golang.go","esbenp.prettier-vscode", "dbaeumer.vscode-eslint","stylelint.vscode-stylelint"],
+    "unwantedRecommendations": [
+        // 排除旧版插件（已被官方插件替代，避免冲突）
+        "lukehoban.go",
+        // 排除冗余的语法插件（官方插件已包含完整语法支持）
+        "mattn.go-syntax"
+    ]
+}
+
+

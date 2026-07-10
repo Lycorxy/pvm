@@ -99,4 +99,4 @@ pnpm run dev
 pnpm run build
 ```
 
-构建产物在 `dist/` 目录。
+构建产物在 `doc_build/` 目录（Rspress 2.x 默认输出）。

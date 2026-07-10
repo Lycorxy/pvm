@@ -507,11 +507,11 @@ func ListRemoteVersions(rt string, useMirror bool) ([]VersionInfo, error) {
 	case "yarn":
 		return listRemoteYarn(useMirror)
 	case "rust":
-		return listRemoteRust()
+		return listRemoteRust(useMirror)
 	case "bun":
-		return listRemoteBun()
+		return listRemoteBun(useMirror)
 	case "deno":
-		return listRemoteDeno()
+		return listRemoteDeno(useMirror)
 	default:
 		return nil, fmt.Errorf("unsupported runtime: %s", rt)
 	}
