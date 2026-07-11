@@ -1,7 +1,11 @@
 # Dependencies
 node_modules
 
-# Documentation site
+# Root package files (from dockit build)
+/package.json
+/pnpm-lock.yaml
+
+# Documentation source
 dockit
 
 # Build artifacts

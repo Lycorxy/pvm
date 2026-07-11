@@ -56,8 +56,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Rspress 2.x 默认输出目录是 doc_build
-          path: dockit/doc_build
+          # Rspress 输出目录配置为根目录的 docs
+          path: docs
 
   deploy:
     needs: build

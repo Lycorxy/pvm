@@ -9,7 +9,7 @@ import { routerConfig } from './routes';
  * 开发环境: /
  * 生产环境: / (GitHub Pages 根路径)
  */
-const publicPath =  '/';
+const publicPath = '/';
 
 /**
  * 需要监听的配置文件列表
@@ -27,6 +27,9 @@ const watchFiles = [
 const config = {
   // 根目录
   root: path.join(__dirname, 'docs'),
+
+  // 输出目录：直接输出到项目根目录的 docs 目录（用于 GitHub Pages）
+  outDir: path.join(__dirname, '../docs'),
 
   // 自定义主题目录（Rspress v2 部分 beta 不识别 themeDir，首页改用 mdx 直接挂载 HomeLayout）
   themeDir: path.join(__dirname, 'theme'),
