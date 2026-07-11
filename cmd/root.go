@@ -13,7 +13,7 @@ import (
 )
 
 // Version 是 pvm 自身版本号（构建时可被 ldflags 覆盖）
-var Version = "0.0.0"
+var Version = "0.0.1"
 
 func Execute() error {
 	// 注册所有 runtime 插件
