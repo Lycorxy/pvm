@@ -1,5 +1,8 @@
 import styles from './index.scss';
 
+// base 路径：生产环境由 cross-env 注入 CROSS_BASE=/pvm/，开发环境默认为 /
+const base = typeof process !== 'undefined' && process.env.CROSS_BASE ? process.env.CROSS_BASE : '/';
+
 /* Types */
 interface FeatureItem {
   icon: React.ReactNode;
@@ -208,13 +211,13 @@ const Hero = function () {
             基于 shim 驱动，无需管理员权限，项目级版本隔离
           </p>
           <div className={styles.heroActions}>
-            <a href="/guide/quick-start" className={styles.btnPrimary}>
+            <a href={`${base}guide/quick-start`} className={styles.btnPrimary}>
               快速开始 <IconArrow />
             </a>
-            <a href="/commands/install" className={styles.btnLink}>
+            <a href={`${base}commands/install`} className={styles.btnLink}>
               命令参考
             </a>
-            <a href="/config/pvmrc" className={styles.btnLink}>
+            <a href={`${base}config/pvmrc`} className={styles.btnLink}>
               配置说明
             </a>
           </div>
@@ -285,37 +288,37 @@ const Features = function () {
       icon: <IconInstall />,
       title: '一键安装',
       desc: '一条 install 装好 node、python、go 等，默认走国内镜像，无需逐个配置源',
-      link: '/commands/install',
+      link: `${base}commands/install`,
     },
     {
       icon: <IconSwap />,
       title: '秒级切换',
       desc: 'pvm use 按项目 / 用户 / 系统三级作用域切换，多版本互不污染',
-      link: '/commands/use',
+      link: `${base}commands/use`,
     },
     {
       icon: <IconFolder />,
       title: '项目隔离',
       desc: '.pvmrc 声明版本并提交，团队 clone 后 pvm use 即得一致环境',
-      link: '/config/pvmrc',
+      link: `${base}config/pvmrc`,
     },
     {
       icon: <IconShield />,
       title: '无需 sudo',
       desc: '运行时全部装在用户目录 ~/.pvm，免管理员权限，CI / 容器内同样可用',
-      link: '/guide/install',
+      link: `${base}guide/install`,
     },
     {
       icon: <IconBolt />,
       title: 'Shim 驱动',
       desc: '通过 shim 拦截命令，按需解析版本，shell 启动零开销、切换即时生效',
-      link: '/guide/shim',
+      link: `${base}guide/shim`,
     },
     {
       icon: <IconMirror />,
       title: '镜像加速',
       desc: '默认国内镜像下载，--official 可切回官方源，--mirror 可强制镜像',
-      link: '/config/runtimes',
+      link: `${base}config/runtimes`,
     },
   ];
 
@@ -426,30 +429,30 @@ const SubModules = function () {
     {
       category: '指南',
       items: [
-        { name: 'PVM 简介', icon: '💡', link: '/guide/' },
-        { name: '安装与初始化', icon: '⬇️', link: '/guide/install' },
-        { name: '快速开始', icon: '🚀', link: '/guide/quick-start' },
-        { name: '版本解析机制', icon: '🧭', link: '/guide/version-resolution' },
-        { name: 'Shim 机制', icon: '🔗', link: '/guide/shim' },
+        { name: 'PVM 简介', icon: '💡', link: `${base}guide/` },
+        { name: '安装与初始化', icon: '⬇️', link: `${base}guide/install` },
+        { name: '快速开始', icon: '🚀', link: `${base}guide/quick-start` },
+        { name: '版本解析机制', icon: '🧭', link: `${base}guide/version-resolution` },
+        { name: 'Shim 机制', icon: '🔗', link: `${base}guide/shim` },
       ],
     },
     {
       category: '命令参考',
       items: [
-        { name: 'install', icon: '⬇️', link: '/commands/install' },
-        { name: 'use', icon: '🔀', link: '/commands/use' },
-        { name: 'list / list-remote', icon: '📋', link: '/commands/list' },
-        { name: 'remove', icon: '🗑️', link: '/commands/remove' },
-        { name: 'config', icon: '⚙️', link: '/commands/config' },
+        { name: 'install', icon: '⬇️', link: `${base}commands/install` },
+        { name: 'use', icon: '🔀', link: `${base}commands/use` },
+        { name: 'list / list-remote', icon: '📋', link: `${base}commands/list` },
+        { name: 'remove', icon: '🗑️', link: `${base}commands/remove` },
+        { name: 'config', icon: '⚙️', link: `${base}commands/config` },
       ],
     },
     {
       category: '配置',
       items: [
-        { name: '.pvmrc 文件', icon: '📄', link: '/config/pvmrc' },
-        { name: '运行时与镜像源', icon: '🌐', link: '/config/runtimes' },
-        { name: '环境变量', icon: '🔑', link: '/config/env' },
-        { name: '常见问题', icon: '❓', link: '/faq/' },
+        { name: '.pvmrc 文件', icon: '📄', link: `${base}config/pvmrc` },
+        { name: '运行时与镜像源', icon: '🌐', link: `${base}config/runtimes` },
+        { name: '环境变量', icon: '🔑', link: `${base}config/env` },
+        { name: '常见问题', icon: '❓', link: `${base}faq/` },
       ],
     },
   ];
@@ -485,7 +488,7 @@ const BottomCTA = function () {
       <div className={styles.footerCta}>
         <h2 className={styles.footerCtaTitle}>几分钟后，你的团队版本就一致了</h2>
         <p className={styles.footerCtaDesc}>读一遍快速开始，把 .pvmrc 提交进仓库。</p>
-        <a href="/guide/quick-start" className={styles.btnPrimary}>
+        <a href={`${base}guide/quick-start`} className={styles.btnPrimary}>
           快速开始 <IconArrow />
         </a>
       </div>
@@ -493,7 +496,7 @@ const BottomCTA = function () {
         <div className={styles.footerSection}>
           <h4 className={styles.footerTitle}>指南</h4>
           <p className={styles.footerDesc}>概念、安装、快速开始</p>
-          <a href="/guide/quick-start" className={styles.footerLink}>
+          <a href={`${base}guide/quick-start`} className={styles.footerLink}>
             查看详情 →
           </a>
         </div>
@@ -501,7 +504,7 @@ const BottomCTA = function () {
         <div className={styles.footerSection}>
           <h4 className={styles.footerTitle}>命令参考</h4>
           <p className={styles.footerDesc}>全部子命令与全局参数</p>
-          <a href="/commands/" className={styles.footerLink}>
+          <a href={`${base}commands/`} className={styles.footerLink}>
             查看详情 →
           </a>
         </div>
@@ -509,7 +512,7 @@ const BottomCTA = function () {
         <div className={styles.footerSection}>
           <h4 className={styles.footerTitle}>配置</h4>
           <p className={styles.footerDesc}>.pvmrc、镜像源、环境变量</p>
-          <a href="/config/" className={styles.footerLink}>
+          <a href={`${base}config/`} className={styles.footerLink}>
             查看详情 →
           </a>
         </div>
