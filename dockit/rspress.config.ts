@@ -6,10 +6,10 @@ import { routerConfig } from './routes';
 
 /**
  * 公共路径配置
- * 开发环境 (rspress dev):  /
- * 生产环境 (rspress build): /pvm/
+ * 开发环境 (rspress dev):  PVM_DEPLOY 未定义 → /
+ * 生产环境 (rspress build): PVM_DEPLOY=1    → /pvm/
  */
-const publicPath = process.env.NODE_ENV === 'production' ? '/pvm/' : '/';
+const publicPath = process.env.PVM_DEPLOY ? '/pvm/' : '/';
 
 /**
  * 需要监听的配置文件列表

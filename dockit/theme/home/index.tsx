@@ -1,7 +1,7 @@
 import styles from './index.scss';
 
-// base 路径：构建时 NODE_ENV=production → /pvm/，开发时 → /
-const base = typeof process !== 'undefined' && process.env.NODE_ENV === 'production' ? '/pvm/' : '/';
+// base 路径：构建时 PVM_DEPLOY=1 → /pvm/，开发时 → /
+const base = typeof process !== 'undefined' && process.env.PVM_DEPLOY ? '/pvm/' : '/';
 
 /* Types */
 interface FeatureItem {
