@@ -1,7 +1,7 @@
 import styles from './index.scss';
 
-// base 路径：生产环境由 cross-env 注入 CROSS_BASE=/pvm/，开发环境默认为 /
-const base = typeof process !== 'undefined' && process.env.CROSS_BASE ? process.env.CROSS_BASE : '/';
+// base 路径：构建时 NODE_ENV=production → /pvm/，开发时 → /
+const base = typeof process !== 'undefined' && process.env.NODE_ENV === 'production' ? '/pvm/' : '/';
 
 /* Types */
 interface FeatureItem {

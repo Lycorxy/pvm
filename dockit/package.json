@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "cross-env CROSS_BASE=/pvm/ rspress build",
-    "dev": "cross-env CROSS_BASE=/ rspress dev",
-    "preview": "cross-env CROSS_BASE=/pvm/ rspress preview",
+    "build": "cross-env NODE_ENV=production rspress build",
+    "dev": "rspress dev",
+    "preview": "cross-env NODE_ENV=production rspress preview",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx,.mjs,.cjs",
     "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx,.mjs,.cjs --fix"
   },

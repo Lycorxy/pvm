@@ -6,14 +6,10 @@ import { routerConfig } from './routes';
 
 /**
  * 公共路径配置
- * 开发环境: CROSS_BASE=/           → http://localhost:3000/
- * 生产环境: CROSS_BASE=/pvm/       → https://username.github.io/pvm/
- *
- * 通过 cross-env 设置 CROSS_BASE 环境变量控制：
- *   pnpm dev              → CROSS_BASE=/ (自动)
- *   pnpm build            → CROSS_BASE=/pvm/ (自动)
+ * 开发环境 (rspress dev):  /
+ * 生产环境 (rspress build): /pvm/
  */
-const publicPath = process.env.CROSS_BASE || '/';
+const publicPath = process.env.NODE_ENV === 'production' ? '/pvm/' : '/';
 
 /**
  * 需要监听的配置文件列表
