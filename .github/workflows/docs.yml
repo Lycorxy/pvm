@@ -56,8 +56,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Rspress 输出目录配置为根目录的 docs
-          path: docs
+          # Rspress 构建输出到 dockit/doc_build，用 cross-env 自动注入 /pvm/ 前缀
+          path: dockit/doc_build
 
   deploy:
     needs: build
