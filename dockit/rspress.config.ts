@@ -95,6 +95,13 @@ const config = {
   builderConfig: {
     plugins: [pluginSass()],
 
+    // 把 PVM_DEPLOY 环境变量显式注入到 bundle，让主题代码能读到
+    source: {
+      define: {
+        'process.env.PVM_DEPLOY': JSON.stringify(process.env.PVM_DEPLOY || ''),
+      },
+    },
+
     output: {
       // 资源前缀
       assetPrefix: publicPath,
