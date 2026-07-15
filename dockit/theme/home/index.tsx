@@ -1,7 +1,7 @@
 import styles from './index.scss';
 
 // base 路径：构建时 PVM_DEPLOY=1 → /pvm/，开发时 → /
-const base = typeof process !== 'undefined' && process.env.PVM_DEPLOY ? '/pvm/' : '/';
+const base = '/pvm/';
 
 /* Types */
 interface FeatureItem {
@@ -33,7 +33,16 @@ interface LevelItem {
 /* 内联图标 */
 const IconInstall = function () {
   return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="7 10 12 15 17 10" />
       <line x1="12" y1="15" x2="12" y2="3" />
@@ -43,7 +52,16 @@ const IconInstall = function () {
 
 const IconSwap = function () {
   return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <polyline points="17 1 21 5 17 9" />
       <path d="M3 11V9a4 4 0 0 1 4-4h14" />
       <polyline points="7 23 3 19 7 15" />
@@ -54,7 +72,16 @@ const IconSwap = function () {
 
 const IconFolder = function () {
   return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
       <polyline points="9 13 12 16 15 13" />
       <line x1="12" y1="16" x2="12" y2="9" />
@@ -64,7 +91,16 @@ const IconFolder = function () {
 
 const IconShield = function () {
   return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       <path d="M9 12l2 2 4-4" />
     </svg>
@@ -73,7 +109,16 @@ const IconShield = function () {
 
 const IconBolt = function () {
   return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
     </svg>
   );
@@ -81,7 +126,16 @@ const IconBolt = function () {
 
 const IconMirror = function () {
   return (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="12" cy="12" r="9" />
       <path d="M3 12h18" />
       <path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z" />
@@ -91,7 +145,16 @@ const IconMirror = function () {
 
 const IconArrow = function () {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <line x1="5" y1="12" x2="19" y2="12" />
       <polyline points="12 5 19 12 12 19" />
     </svg>
@@ -131,23 +194,45 @@ const HeroIllustration = function () {
       <g transform="translate(72 92)">
         <rect width="200" height="56" rx="12" fill="url(#cardActive)" />
         <circle cx="26" cy="28" r="10" fill="#fff" opacity="0.25" />
-        <path d="M22 28 l3 3 l5-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        <text x="46" y="27" fontSize="15" fontWeight="600" fill="#fff">node 20.11.0</text>
-        <text x="46" y="44" fontSize="11" fill="#fff" opacity="0.8">active · shim → resolve</text>
+        <path
+          d="M22 28 l3 3 l5-6"
+          stroke="#fff"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+        <text x="46" y="27" fontSize="15" fontWeight="600" fill="#fff">
+          node 20.11.0
+        </text>
+        <text x="46" y="44" fontSize="11" fill="#fff" opacity="0.8">
+          active · shim → resolve
+        </text>
         <rect x="154" y="10" width="34" height="16" rx="8" fill="#fff" opacity="0.22" />
-        <text x="162" y="21" fontSize="9" fontWeight="600" fill="#fff">NOW</text>
+        <text x="162" y="21" fontSize="9" fontWeight="600" fill="#fff">
+          NOW
+        </text>
       </g>
 
       {/* 箭头 */}
       <path d="M286 158 L328 158" stroke="#165dff" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M318 150 L330 158 L318 166" stroke="#165dff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path
+        d="M318 150 L330 158 L318 166"
+        stroke="#165dff"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
 
       {/* shim 框 */}
       <g transform="translate(336 128)">
         <rect width="104" height="64" rx="12" fill="var(--rp-c-bg)" stroke="var(--rp-c-border)" strokeWidth="1.5" />
         <rect x="0" y="0" width="104" height="22" rx="12" fill="var(--rp-c-bg-soft)" />
         <rect y="10" width="104" height="12" fill="var(--rp-c-bg-soft)" />
-        <text x="12" y="15" fontSize="10" fontWeight="600" fill="var(--rp-c-text-2)">~/.pvm/shims</text>
+        <text x="12" y="15" fontSize="10" fontWeight="600" fill="var(--rp-c-text-2)">
+          ~/.pvm/shims
+        </text>
         <rect x="14" y="34" width="76" height="8" rx="4" fill="#165dff" opacity="0.18" />
         <rect x="14" y="48" width="48" height="6" rx="3" fill="var(--rp-c-text-3)" opacity="0.2" />
       </g>
