@@ -98,7 +98,7 @@ if ($env:PVM_NO_MODIFY_PATH -ne '1') {
   $parts = $userPath -split ';' | Where-Object { $_ -ne '' }
 
   # 已知会与 pvm shims 冲突的系统 runtime 目录名
-  $conflictNames = @('nodejs', 'python', 'go', 'golang')
+  $conflictNames = @('nodejs', 'node', 'nvm', 'python', 'go', 'golang')
   $conflictsRemoved = @()
 
   # 1. 移除用户 PATH 中与 pvm 冲突的目录

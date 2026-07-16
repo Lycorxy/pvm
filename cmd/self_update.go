@@ -14,6 +14,7 @@ import (
 	"github.com/pvm/pvm/internal/config"
 	"github.com/pvm/pvm/internal/download"
 	"github.com/pvm/pvm/internal/logger"
+	"github.com/pvm/pvm/internal/shim"
 )
 
 // ReleaseRepo 是 pvm 发布仓库（构建时可通过 ldflags 覆盖）
@@ -79,6 +80,18 @@ func runSelfUpdate(args []string) error {
 	}
 
 	logger.Info("  ✓ updated to %s", tag)
+
+	// 重建 shim：pvm 已替换为新版本，旧 shim（硬链接）仍指向旧 inode，必须 reshim 才指向新二进制。
+	// 失败不致命——下次 pvm use/install/reshim 会再重建。
+	if err := shim.Reshim(); err != nil {
+		if shim.IsReshimWarning(err) {
+			logger.Info("  ! reshim: %v (some shims in use, will refresh on next run)", err)
+		} else {
+			logger.Info("  ⚠ reshim after update: %v (run `pvm reshim` manually)", err)
+		}
+	} else {
+		logger.Info("  ✓ shims rebuilt to new version")
+	}
 	return nil
 }
 

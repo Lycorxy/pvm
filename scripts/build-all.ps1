@@ -1,4 +1,4 @@
-# PVM 一键打包脚本（全部平台）
+﻿# PVM 一键打包脚本（全部平台）
 # 用法：
 #   .\scripts\build-all.ps1              # 自动读取版本号，打包所有平台
 #   .\scripts\build-all.ps1 -Version 1.2.3  # 指定版本号
@@ -88,19 +88,7 @@ foreach ($p in $platforms) {
     Write-Host " OK" -ForegroundColor Green
     $exePaths += $outputPath
 
-    # 编译 pvm-shim（统一 shim 方案：命令转发器，被复制/链接为各命令名）
-    $shimName = "pvm-shim-$($p.GOOS)-$($p.GOARCH)$($p.Ext)"
-    $shimPath = Join-Path $DistDir $shimName
-    $shimOut = go build -ldflags "-s -w" -o $shimPath ./cmd/shim 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "    + pvm-shim OK" -ForegroundColor DarkGray
-        # Windows amd64 额外保留一份 pvm-shim.exe 供 MSI 打包直接使用
-        if ($p.GOOS -eq "windows" -and $p.GOARCH -eq "amd64") {
-            Copy-Item $shimPath (Join-Path $DistDir "pvm-shim.exe") -Force
-        }
-    } else {
-        Write-Host "    + pvm-shim FAILED: $shimOut" -ForegroundColor DarkRed
-    }
+    # 单二进制方案：pvm 本身即 shim 源（reshim 硬链接它为各命令名），无需单独编译 pvm-shim
 }
 
 # 恢复当前平台环境变量

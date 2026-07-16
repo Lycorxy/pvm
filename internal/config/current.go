@@ -10,9 +10,9 @@ import (
 
 // SetCurrent 在 ~/.pvm/bin 中为指定 runtime 创建可执行文件。
 //
-// 策略（统一 pvm-shim 方案）：
+// 策略（单二进制方案）：
 //   - Windows: 对所有运行时都创建 .exe（VSCode 等 IDE 只认 .exe）
-//   - Git: pvm-shim 副本（git/bash/sh 等转发到 pvm shim-exec）+ .cmd 直接指向
+//   - Git: pvm.exe 硬链接副本（git/bash/sh 等按文件名自分发到 pvm shim-exec）+ .cmd 直接指向
 //     （ssh/curl/vim 等非 RuntimeShims 命令，避免 pvm 转发循环）
 //   - Python/Go: 直接复制 exe
 //   - Unix: 符号链接或复制
@@ -85,20 +85,20 @@ func SetCurrent(rt, version string) error {
 	return nil
 }
 
-// gitPvmShimCommands 是通过 pvm-shim 副本转发的 Git 命令（在 RuntimeShims["git"] 里，
+// gitPvmExeCommands 是通过 pvm.exe 硬链接转发的 Git 命令（在 RuntimeShims["git"] 里，
 // pvm 的 FindRuntimeForCommand 能识别并正确解析 git 版本）。
-// 这些命令复制为 <name>.exe（pvm-shim 副本），运行时转发到 pvm shim-exec。
-var gitPvmShimCommands = []string{
+// 这些命令硬链接为 <name>.exe（pvm.exe 副本），运行时按文件名自分发到 pvm shim-exec。
+var gitPvmExeCommands = []string{
 	"git", "git-lfs",
 	"gitk", "git-gui",
 	"git-askpass", "git-askyesno", "git-credential-helper-selector",
 	"git-http-fetch", "git-http-push", "git-receive-pack", "git-upload-pack",
-	// bash/sh：VSCode Git Bash 终端需要 bash.exe，通过 pvm-shim 转发到 git/bin/bash.exe
+	// bash/sh：VSCode Git Bash 终端需要 bash.exe，通过 pvm.exe 硬链接转发到 git/bin/bash.exe
 	"bash", "sh",
 }
 
 // gitDirectCmdCommands 是直接用 .cmd 指向真实 exe 的 Git 工具命令
-// （不在 RuntimeShims 里，不能走 pvm-shim 转发，否则会循环或失败）。
+// （不在 RuntimeShims 里，不能走 pvm 转发，否则会循环或失败）。
 // 每项格式：binName -> 相对于 git 安装目录的路径
 var gitDirectCmdCommands = map[string]string{
 	// Git Bash 启动器
@@ -156,10 +156,10 @@ var gitDirectCmdCommands = map[string]string{
 }
 
 // setCurrentGitWindows 在 Windows 上为 git 创建 ~/.pvm/bin 下的可执行文件。
-//   - pvm-shim 副本（git/bash/sh 等）：转发到 pvm shim-exec，由 pvm 解析版本并执行
+//   - pvm.exe 硬链接（git/bash/sh 等）：按文件名自分发到 pvm shim-exec，由 pvm 解析版本并执行
 //   - .cmd 直接指向（ssh/curl/vim 等）：避免 pvm 转发循环，直接运行真实 exe
 //
-// 关键：bash.exe（pvm-shim 副本）让 VSCode 能识别 Git Bash 终端。
+// 关键：bash.exe（pvm.exe 硬链接）让 VSCode 能识别 Git Bash 终端。
 func setCurrentGitWindows(gitInstallDir, binDir string) error {
 	currentDir := filepath.Join(InstallsDir(), "git", "current")
 	// current junction 不存在时回退到 gitInstallDir（兼容旧安装）
@@ -167,20 +167,22 @@ func setCurrentGitWindows(gitInstallDir, binDir string) error {
 		currentDir = gitInstallDir
 	}
 
-	// 1. pvm-shim 副本命令（git/bash/sh 等，转发到 pvm）
-	shimSrc := resolvePvmShimPath()
+	// 1. pvm 副本命令（git/bash/sh 等，硬链接 pvm.exe 自分发转发到 pvm shim-exec）
+	shimSrc := resolvePvmExePath()
 	if shimSrc != "" {
-		for _, cmd := range gitPvmShimCommands {
+		for _, cmd := range gitPvmExeCommands {
 			// bash/sh 在 bin/，git 在 cmd/，gitk/git-gui 在 cmd/
-			// pvm-shim 转发不依赖真实路径（由 pvm ResolveBinary 查找），只需复制副本
+			// 硬链接 pvm.exe 为 <cmd>.exe，启动时按文件名转发（由 pvm ResolveBinary 查找真实 exe）
 			binExe := filepath.Join(binDir, cmd+".exe")
-			if err := copyFile(shimSrc, binExe); err != nil {
-				continue
+			_ = os.Remove(binExe)
+			if err := os.Link(shimSrc, binExe); err != nil {
+				// 硬链接失败（跨文件系统等）→ 回退到复制
+				_ = copyFile(shimSrc, binExe)
 			}
 		}
 	} else {
-		// pvm-shim 不可用，回退到 .cmd 直接指向（至少 git 可用）
-		for _, cmd := range gitPvmShimCommands {
+		// pvm.exe 不可用，回退到 .cmd 直接指向（至少 git 可用）
+		for _, cmd := range gitPvmExeCommands {
 			realExe := findGitExe(currentDir, cmd)
 			if realExe == "" {
 				continue
@@ -221,26 +223,30 @@ func findGitExe(gitDir, cmd string) string {
 	return ""
 }
 
-// resolvePvmShimPath 获取 pvm-shim.exe 的路径（内联实现避免循环依赖）
-// pvm-shim 是统一的命令转发器，被复制为各命令名。
-// 优先级: ~/.pvm/bin/pvm-shim.exe → pvm.exe同目录/pvm-shim.exe → dist/pvm-shim.exe
-func resolvePvmShimPath() string {
-	// 1. ~/.pvm/bin/pvm-shim.exe
-	pvmBinShim := filepath.Join(BinHome(), "pvm-shim.exe")
-	if _, err := os.Stat(pvmBinShim); err == nil {
-		return pvmBinShim
+// resolvePvmExePath 获取 pvm 主程序（pvm.exe）的路径（内联实现避免循环依赖）。
+// 单二进制方案：git/bash/sh 等命令通过硬链接 pvm.exe 到 ~/.pvm/bin/ 实现自分发转发
+// （pvm 启动按自身文件名识别命令，见 cmd.shimExeNameFromArgv0）。
+// 优先级: ~/.pvm/bin/pvm.exe → 当前运行的 exe → dist/pvm.exe
+func resolvePvmExePath() string {
+	ext := ""
+	if runtime.GOOS == "windows" {
+		ext = ".exe"
 	}
-	// 2. pvm.exe 同目录
+	// 1. ~/.pvm/bin/pvm.exe
+	pvmBin := filepath.Join(BinHome(), "pvm"+ext)
+	if _, err := os.Stat(pvmBin); err == nil {
+		return pvmBin
+	}
+	// 2. 当前运行的 exe（pvm 本体）
 	if exe, err := os.Executable(); err == nil {
-		localShim := filepath.Join(filepath.Dir(exe), "pvm-shim.exe")
-		if _, err := os.Stat(localShim); err == nil {
-			return localShim
+		if _, err := os.Stat(exe); err == nil {
+			return exe
 		}
 	}
 	// 3. dist 目录（开发构建产物）
-	devShim := filepath.Join("dist", "pvm-shim.exe")
-	if _, err := os.Stat(devShim); err == nil {
-		if abs, err := filepath.Abs(devShim); err == nil {
+	devExe := filepath.Join("dist", "pvm"+ext)
+	if _, err := os.Stat(devExe); err == nil {
+		if abs, err := filepath.Abs(devExe); err == nil {
 			return abs
 		}
 	}

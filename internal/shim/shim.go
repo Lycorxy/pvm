@@ -46,9 +46,9 @@ var RuntimeShims = map[string][]string{
 
 // Reshim 重建 shims 目录：
 //  1. 清理旧 shims（含迁移期残留的 .cmd/.ps1/.shim 旧格式）
-//  2. 把 pvm-shim 二进制复制（Windows）或符号链接（Unix）为每个命令名
+//  2. 把 pvm 本体硬链接（跨平台）为每个命令名
 //
-// 所有命令统一走 pvm-shim → pvm shim-exec 动态解析版本，
+// 所有命令统一走 pvm 自分发 → pvm shim-exec 动态解析版本（单二进制方案），
 // 不再区分"工具型直接 shim"与"动态 shim"的双轨制。
 func Reshim() error {
 	shimsDir := config.ShimsDir()
@@ -56,10 +56,10 @@ func Reshim() error {
 		return err
 	}
 
-	// 定位 pvm-shim 二进制源（reshim 的前提）
-	shimSrc := GetPvmShimPath()
-	if shimSrc == "" {
-		return fmt.Errorf("pvm-shim binary not found — run `pvm setup` first, or build with: go build -o %%~/.pvm/bin/pvm-shim ./cmd/shim")
+	// 定位 shim 源二进制（reshim 的前提）
+	shimSrc, err := getShimSource()
+	if err != nil {
+		return err
 	}
 
 	// 清理目录中所有旧 shim（只删文件，不删目录）
@@ -132,6 +132,29 @@ func Reshim() error {
 	return nil
 }
 
+// getShimSource 返回用于生成各命令 shim 的二进制源——统一使用主程序 pvm 本体。
+//
+// 单二进制方案（跨平台）：pvm 启动时通过自身文件名自分发
+// （见 cmd.shimExeNameFromArgv0），因此 reshim 把 pvm 硬链接为 node/npm/git...
+// 即可，无需单独的 pvm-shim。一个二进制走天下，避免"分发缺 pvm-shim 导致 setup 假成功"。
+//
+// 优先用 ~/.pvm/bin/pvm（setup 已复制到此），回退到当前运行的 exe。
+func getShimSource() (string, error) {
+	ext := config.ExeExt()
+	candidates := []string{
+		filepath.Join(config.BinHome(), "pvm"+ext),
+	}
+	if exe, err := os.Executable(); err == nil && exe != "" {
+		candidates = append(candidates, exe)
+	}
+	for _, c := range candidates {
+		if info, err := os.Stat(c); err == nil && !info.IsDir() {
+			return c, nil
+		}
+	}
+	return "", fmt.Errorf("pvm binary not found — run `pvm setup` first")
+}
+
 // ShimInUseError 表示 shim 文件被其他进程占用，无法覆盖
 type ShimInUseError struct {
 	File string
@@ -159,32 +182,49 @@ func IsReshimWarning(err error) bool {
 	return errors.As(err, &w)
 }
 
-// writeShim 为单个命令生成 shim：把 pvm-shim 二进制复制（Windows）或
-// 符号链接（Unix）为 <cmdName>。
+// writeShim 为单个命令生成 shim：把 pvm 本体硬链接（跨平台）为 <cmdName>。
 //
-// Windows 策略（参考 Proto crates/shim/src/windows.rs）：
-//   - .exe 是真正的可执行文件，被 VSCode 等 IDE 识别（.cmd 不会被识别）
-//   - 覆盖正在运行的 exe：先把旧 exe 重命名为 .previous，再写新 exe，再删 .previous
-//   - 文件被占用时返回 ShimInUseError（非致命，下次 reshim 会重试）
-//
-// Unix 策略：
-//   - 符号链接 <cmdName> → pvm-shim，零磁盘占用，升级 pvm-shim 后所有 shim 自动生效
-//   - 用 tmp + rename 原子化（避免部分写入）
+// 单二进制方案：pvm 通过自身文件名自分发（见 cmd.shimExeNameFromArgv0），
+// 所以无论 Windows 还是 Unix，都把 pvm 硬链接成 node/npm/git... 即可。
+//   - 硬链接：零磁盘占用，所有 shim 共享同一份 pvm 内容
+//   - 覆盖正在运行的旧 shim：先重命名为 .previous 让位，再建新链接
+//   - 文件被占用时返回 ShimInUseError（非致命，下次 reshim 重试）
+//   - 硬链接不可用（如跨文件系统）→ 回退到复制
 func writeShim(shimsDir, cmdName, shimSrc string) error {
-	if runtime.GOOS == "windows" {
-		return writeShimWindows(shimsDir, cmdName, shimSrc)
+	target := filepath.Join(shimsDir, cmdName+config.ExeExt())
+	if err := writeShimHardlink(target, shimSrc); err == nil {
+		return nil
 	}
-	return writeShimUnix(shimsDir, cmdName, shimSrc)
+	return writeShimCopy(target, shimSrc)
 }
 
-// writeShimWindows 在 Windows 上把 pvm-shim.exe 复制为 <cmdName>.exe
-func writeShimWindows(shimsDir, cmdName, shimSrc string) error {
-	target := filepath.Join(shimsDir, cmdName+".exe")
+// writeShimHardlink 用硬链接生成 shim（零磁盘占用）。
+// pvm.exe 通过自身文件名自分发（见 cmd.shimExeNameFromArgv0），
+// 硬链接出的 node.exe 仍是完整的 pvm.exe，启动时按文件名转发到真实版本。
+func writeShimHardlink(target, shimSrc string) error {
+	if _, err := os.Stat(target); err == nil {
+		// 目标已存在：尝试删除；被占用则重命名为 .previous 让位
+		if rmErr := os.Remove(target); rmErr != nil {
+			previous := target + ".previous"
+			_ = os.Remove(previous)
+			if renameErr := os.Rename(target, previous); renameErr != nil {
+				if isFileBusy(renameErr) {
+					return &ShimInUseError{File: target, Err: renameErr}
+				}
+				return fmt.Errorf("cannot replace shim %s: %w", target, renameErr)
+			}
+			defer os.Remove(previous)
+		}
+	}
+	return os.Link(shimSrc, target)
+}
 
-	// 读取 pvm-shim 二进制内容
+// writeShimCopy 用复制生成 shim（硬链接不可用时的回退方案，如跨文件系统）
+func writeShimCopy(target, shimSrc string) error {
+	// 读取源二进制内容
 	data, err := os.ReadFile(shimSrc)
 	if err != nil {
-		return fmt.Errorf("read pvm-shim source: %w", err)
+		return fmt.Errorf("read shim source: %w", err)
 	}
 
 	// 先写到临时文件，再原子替换目标
@@ -194,17 +234,15 @@ func writeShimWindows(shimsDir, cmdName, shimSrc string) error {
 		return fmt.Errorf("write tmp shim: %w", err)
 	}
 
-	// 尝试直接 rename 覆盖目标
 	if err := os.Rename(tmp, target); err == nil {
 		return nil
 	}
 
 	// rename 失败：目标可能正在运行（Windows 不允许覆盖运行中的 exe）
-	// 采用 Proto 方案：先把旧目标重命名为 .previous.exe，再写入新文件
+	// 先把旧目标重命名为 .previous 再写入
 	previous := target + ".previous"
-	_ = os.Remove(previous) // 清理上次残留的 .previous
+	_ = os.Remove(previous)
 	if renameErr := os.Rename(target, previous); renameErr != nil {
-		// 旧文件也无法重命名 → 真正被占用，返回非致命错误
 		_ = os.Remove(tmp)
 		if isFileBusy(renameErr) {
 			return &ShimInUseError{File: target, Err: renameErr}
@@ -212,7 +250,6 @@ func writeShimWindows(shimsDir, cmdName, shimSrc string) error {
 		return fmt.Errorf("cannot replace shim %s: %w", target, renameErr)
 	}
 
-	// 旧文件已让位，写入新文件
 	if err := os.Rename(tmp, target); err != nil {
 		// 回滚：把旧文件放回去
 		_ = os.Rename(previous, target)
@@ -222,27 +259,6 @@ func writeShimWindows(shimsDir, cmdName, shimSrc string) error {
 
 	// 尽力删除 .previous（可能仍被占用，留待下次清理）
 	_ = os.Remove(previous)
-	return nil
-}
-
-// writeShimUnix 在 Unix 上创建符号链接 <cmdName> → pvm-shim
-func writeShimUnix(shimsDir, cmdName, shimSrc string) error {
-	target := filepath.Join(shimsDir, cmdName)
-
-	// 先写临时 symlink 再 rename，保证原子性
-	tmp := target + ".tmp"
-	_ = os.Remove(tmp)
-	if err := os.Symlink(shimSrc, tmp); err != nil {
-		_ = os.Remove(tmp)
-		return fmt.Errorf("create symlink: %w", err)
-	}
-	if err := os.Rename(tmp, target); err != nil {
-		_ = os.Remove(tmp)
-		if isFileBusy(err) {
-			return &ShimInUseError{File: target, Err: err}
-		}
-		return fmt.Errorf("install shim: %w", err)
-	}
 	return nil
 }
 
@@ -280,40 +296,6 @@ func scanBinDir(dir string, commandSet map[string]struct{}) {
 		}
 		commandSet[name] = struct{}{}
 	}
-}
-
-// GetPvmShimPath 定位 pvm-shim 二进制文件的路径。
-// 查找顺序：
-//  1. ~/.pvm/bin/pvm-shim(.exe) —— 标准安装位置
-//  2. 当前 pvm 可执行文件同目录 —— 开发模式 / MSI 安装目录
-//  3. 项目 dist 目录 —— 开发构建产物
-//  4. 项目 cmd/shim 源码目录的编译产物 —— go build 后的默认位置
-func GetPvmShimPath() string {
-	ext := config.ExeExt()
-	name := "pvm-shim" + ext
-
-	var candidates []string
-
-	// 1. ~/.pvm/bin/pvm-shim
-	candidates = append(candidates, filepath.Join(config.BinHome(), name))
-
-	// 2. 当前 exe 同目录
-	if exe, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(exe), name))
-	}
-
-	// 3. dist 目录（开发构建产物）
-	candidates = append(candidates, filepath.Join("dist", name))
-
-	// 4. cmd/shim 同目录（go build -o ./cmd/shim/ 的场景）
-	candidates = append(candidates, filepath.Join("cmd", "shim", name))
-
-	for _, c := range candidates {
-		if info, err := os.Stat(c); err == nil && !info.IsDir() {
-			return c
-		}
-	}
-	return ""
 }
 
 // isFileBusy 判断错误是否为文件被其他进程占用

@@ -1,4 +1,4 @@
-# PVM MSI 打包脚本（自带 WiX Toolset，无需安装）
+﻿# PVM MSI 打包脚本（自带 WiX Toolset，无需安装）
 # 使用说明：
 #   .\scripts\build-msi.ps1                    # 打包 amd64 架构
 #   .\scripts\build-msi.ps1 -Arch arm64        # 打包 arm64 架构
@@ -98,32 +98,7 @@ New-Item -ItemType Directory -Path $msiDir -Force | Out-Null
 Copy-Item $srcExe (Join-Path $msiDir "pvm.exe") -Force
 Copy-Item (Join-Path $ProjectRoot "LICENSE") $msiDir -Force -ErrorAction SilentlyContinue
 
-# 复制 pvm-shim.exe（统一 shim 方案：命令转发器，被复制为各命令名 node/git/go...）
-$shimExeSrc = Join-Path $distDir "pvm-shim.exe"
-if (-not (Test-Path $shimExeSrc)) {
-    # 尝试带平台后缀的命名（build-all.ps1 产物）
-    $shimExeSrc = Join-Path $distDir "pvm-shim-windows-amd64.exe"
-}
-if (-not (Test-Path $shimExeSrc)) {
-    # 尝试直接编译
-    Write-Host "  Building pvm-shim.exe from source..." -ForegroundColor Gray
-    $shimBuild = go build -ldflags "-s -w" -o (Join-Path $msiDir "pvm-shim.exe") ./cmd/shim 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        $shimExeSrc = $null  # already in target location, no need to copy
-        Write-Host "  pvm-shim.exe built" -ForegroundColor Green
-    } else {
-        Write-Host "  pvm-shim build failed: $shimBuild" -ForegroundColor DarkRed
-        $shimExeSrc = $null
-    }
-}
-if ($shimExeSrc -and (Test-Path $shimExeSrc)) {
-    Copy-Item $shimExeSrc (Join-Path $msiDir "pvm-shim.exe") -Force
-    Write-Host "  pvm-shim.exe included" -ForegroundColor Green
-} elseif (Test-Path (Join-Path $msiDir "pvm-shim.exe")) {
-    Write-Host "  pvm-shim.exe built" -ForegroundColor Green
-} else {
-    Write-Host "  Warning: pvm-shim.exe not found, shims will not work" -ForegroundColor Yellow
-}
+# 单二进制方案：pvm.exe 自身即 shim 源（reshim 硬链接它为各命令名），无需 pvm-shim.exe
 
 # 生成 WXS 文件
 Write-Host "`n[3/4] Generating WiX source..." -ForegroundColor Yellow
@@ -167,10 +142,6 @@ $wxsContent = @"
         <File Id="PvmExe" Source="pvm.exe" />
         <!-- 卸载时删除安装目录 -->
         <RemoveFolder Id="RemoveINSTALLDIR" Directory="INSTALLDIR" On="uninstall" />
-      </Component>
-      <Component Id="ShimExecutable" Guid="d4e5f6a7-b8c9-0123-def0-234567890123">
-        <RegistryValue Root="HKCU" Key="Software\pvm" Name="ShimExe" Value="1" Type="string" KeyPath="yes" />
-        <File Id="PvmShimExe" Source="pvm-shim.exe" />
       </Component>
     </ComponentGroup>
 

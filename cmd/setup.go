@@ -179,7 +179,7 @@ func runSetup(args []string) error {
 		logger.Info("  ✓ pvm already in %s", targetExe)
 	}
 
-	// 安装 pvm-shim 二进制（统一 shim 方案：被复制/链接为各命令名 node/git/go...）
+	// 安装 shim 源（单二进制方案下 installPvmShim 为 no-op，pvm 本身即 shim 源）
 	installPvmShim(currentExe, binHome)
 	fmt.Println()
 
@@ -252,99 +252,15 @@ func runSetup(args []string) error {
 	return nil
 }
 
-// installPvmShim 安装 pvm-shim 二进制到 binHome。
-// pvm-shim 是统一的命令转发器：被复制（Windows）或符号链接（Unix）为各命令名
-// （node、npm、git、go、pnpm...），启动后通过自身文件名识别命令，委托 pvm 主程序
-// 解析版本并执行真实二进制。
+// installPvmShim 历史上用于安装独立的 pvm-shim 二进制。
 //
-// 所有平台都需要 pvm-shim：Windows reshim 时复制为 <cmd>.exe；Unix reshim 时
-// symlink <cmd> → pvm-shim。
+// 现已改为单二进制方案（跨平台）：pvm 本身即 shim 源，reshim 把它硬链接为
+// node/npm/git... 各命令名，pvm 启动时按自身文件名自分发（见 cmd.shimExeNameFromArgv0）。
+// 因此无需再单独安装 pvm-shim——保留此函数仅为兼容旧调用点，直接返回。
 func installPvmShim(currentExe, binHome string) {
-	ext := config.ExeExt()
-	targetName := "pvm-shim" + ext
-	targetPath := filepath.Join(binHome, targetName)
-
-	// 查找 pvm-shim 源文件
-	var shimSrc string
-
-	// 1. 当前可执行文件同目录（MSI 安装位置 / 打包目录）
-	exeDir := filepath.Dir(currentExe)
-	if localShim := filepath.Join(exeDir, targetName); localShim != targetPath {
-		if _, err := os.Stat(localShim); err == nil {
-			shimSrc = localShim
-		}
-	}
-
-	// 2. dist 目录（开发构建产物）
-	if shimSrc == "" {
-		devShim := filepath.Join("dist", targetName)
-		if abs, err := filepath.Abs(devShim); err == nil {
-			if _, err := os.Stat(abs); err == nil {
-				shimSrc = abs
-			}
-		}
-	}
-
-	// 3. cmd/shim 目录（go build -o ./cmd/shim/ 的场景）
-	if shimSrc == "" {
-		devShim := filepath.Join("cmd", "shim", targetName)
-		if abs, err := filepath.Abs(devShim); err == nil {
-			if _, err := os.Stat(abs); err == nil {
-				shimSrc = abs
-			}
-		}
-	}
-
-	// 4. 目标已存在且是最新的，跳过
-	if shimSrc == "" {
-		if _, err := os.Stat(targetPath); err == nil {
-			logger.Info("  ✓ pvm-shim already installed: %s", targetPath)
-			return
-		}
-		logger.Info("  ⚠ pvm-shim binary not found")
-		logger.Info("    Build it first: go build -o %s ./cmd/shim", filepath.Join("dist", targetName))
-		logger.Info("    Shims will not work until pvm-shim is installed in %s", binHome)
-		return
-	}
-
-	// 源与目标相同则跳过
-	if absSrc, _ := filepath.Abs(shimSrc); absSrc != "" {
-		if absTgt, _ := filepath.Abs(targetPath); absTgt == absSrc {
-			logger.Info("  ✓ pvm-shim already in place: %s", targetPath)
-			return
-		}
-	}
-
-	data, err := os.ReadFile(shimSrc)
-	if err != nil {
-		logger.Info("  ⚠ cannot read pvm-shim: %v", err)
-		return
-	}
-
-	// 写入目标：先写临时文件再原子 rename，避免覆盖运行中的二进制
-	tmp := targetPath + ".tmp"
-	if err := os.WriteFile(tmp, data, 0755); err != nil {
-		logger.Info("  ⚠ cannot write pvm-shim: %v", err)
-		return
-	}
-	if err := os.Rename(tmp, targetPath); err != nil {
-		// rename 失败（目标可能正在运行）：先备份旧文件再写入
-		_ = os.Remove(tmp)
-		backup := targetPath + ".old"
-		_ = os.Remove(backup)
-		if renameErr := os.Rename(targetPath, backup); renameErr == nil {
-			if err := os.Rename(tmp, targetPath); err != nil {
-				_ = os.Rename(backup, targetPath) // 回滚
-				logger.Info("  ⚠ cannot install pvm-shim: %v", err)
-				return
-			}
-		} else {
-			logger.Info("  ⚠ cannot replace pvm-shim (in use): %v", renameErr)
-			return
-		}
-	}
-
-	logger.Info("  ✓ pvm-shim installed to %s", targetPath)
+	_ = currentExe
+	_ = binHome
+	logger.Verbose("  ✓ single-binary mode: pvm is the shim source (no separate pvm-shim needed)")
 }
 
 // setupWindowsPath 在 Windows 上将 shims 和 bin 目录加入用户 PATH
@@ -522,18 +438,21 @@ func ensureGitBashInUserPath() {
 	// 写入用户级 PATH 并广播 WM_SETTINGCHANGE，让 VSCode 等进程感知变更
 	// 使用 -EncodedCommand 避免 $ 变量在某些 shell 环境中被替换
 	escapedPath := escapePowerShellString(newPath)
-	psScript := fmt.Sprintf(`$newPath = '%s'; `+
-		`[Environment]::SetEnvironmentVariable('Path', $newPath, 'User'); `+
-		`Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; ' + `+
-		`'public class Win32Helper { [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)] ' + `+
-		`'public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, ' + `+
-		`'uint fuFlags, uint uTimeout, out UIntPtr lpdwResult); }' -ErrorAction SilentlyContinue; `+
-		`try { $HWND_BROADCAST = [IntPtr]0xffff; $WM_SETTINGCHANGE = 0x001A; $result = [UIntPtr]::Zero; `+
-		`'Win32Helper'::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null } catch {}`,
+	psScript := fmt.Sprintf(
+		`$newPath = '%s'; `+
+			`try { [Environment]::SetEnvironmentVariable('Path', $newPath, 'User') } `+
+			`catch { Write-Output ('SET_PATH_FAILED: ' + $_.Exception.Message); exit 2 }; `+
+			`try { `+
+			`Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class Win32HelperGit { [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult); }' -ErrorAction SilentlyContinue; `+
+			`$HWND_BROADCAST = [IntPtr]0xffff; $WM_SETTINGCHANGE = 0x001A; $result = [UIntPtr]::Zero; `+
+			`[Win32HelperGit]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null `+
+			`} catch {}; `+
+			`exit 0`,
 		escapedPath)
 	encodedCmd := encodePowerShellCommand(psScript)
-	if err := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd).Run(); err != nil {
-		logger.Info("  ⚠ Could not update user PATH for Git Bash: %v", err)
+	out, err = exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd).CombinedOutput()
+	if err != nil {
+		logger.Info("  ⚠ Could not update user PATH for Git Bash: %v (output: %s)", err, strings.TrimSpace(string(out)))
 		return
 	}
 	logger.Info("  ✓ User PATH updated — VSCode will auto-detect Git Bash")
@@ -568,7 +487,8 @@ func detectVersionManagers(conflictPaths []string) map[string]string {
 
 // fixSystemPathConflicts detects system-level PATH conflicts and auto-fixes them
 // Strategy: if running as admin -> directly modify system PATH to move conflicting paths to end
-//            if not admin -> auto-elevate via UAC prompt to re-run setup with admin rights
+//
+//	if not admin -> auto-elevate via UAC prompt to re-run setup with admin rights
 func fixSystemPathConflicts(conflictDirNames []string) error {
 	sysPath, err := exec.Command("powershell", "-NoProfile", "-Command",
 		"[Environment]::GetEnvironmentVariable('Path','Machine')").Output()
@@ -624,48 +544,79 @@ func fixSystemPathConflicts(conflictDirNames []string) error {
 	return nil
 }
 
-// fixSystemPathDirectly modifies system-level PATH with admin privileges
-// Moves conflicting runtime directories to the end of system PATH
+// fixSystemPathDirectly modifies system-level PATH with admin privileges.
+//
+// 关键原理：Windows PATH 合并顺序为「系统 PATH + 用户 PATH」，系统 PATH 整体在前。
+// 所以仅把冲突项（如 D:\node、D:\nvm）挪到系统 PATH 末尾是无效的——它们仍在
+// 用户 PATH 的 pvm shim 之前，node 仍会命中冲突项。
+//
+// 正确做法（与 nvm-windows 一致）：把 pvm shims/bin 前置到系统 PATH 最前，
+// 让 pvm 的 shim 优先于系统里已装的 node/nvm 等。冲突项同时挪到末尾作为额外保险。
+// 幂等：pvm 目录已在前置位置则不重复添加。
 func fixSystemPathDirectly(sysEntries, sysConflicts []string) error {
 	conflictSet := make(map[string]bool)
 	for _, c := range sysConflicts {
 		conflictSet[filepath.Clean(c)] = true
 	}
 
-	// Filter: separate non-conflicting and conflicting paths
+	// pvm 目录（前置到系统 PATH 最前）
+	pvmDirs := []string{config.ShimsDir(), config.BinHome()}
+	pvmSet := make(map[string]bool)
+	for _, d := range pvmDirs {
+		pvmSet[filepath.Clean(d)] = true
+	}
+
+	// 先剔除系统 PATH 中已有的 pvm 目录条目（可能在非首位），再前置
+	var nonPvm []string
+	for _, e := range sysEntries {
+		if !pvmSet[filepath.Clean(e)] {
+			nonPvm = append(nonPvm, e)
+		}
+	}
+
+	// 从剩余条目中分出冲突项（挪到末尾）
 	var nonConflict []string
 	var movedConflicts []string
-
-	for _, e := range sysEntries {
-		cleaned := filepath.Clean(e)
-		if conflictSet[cleaned] {
+	for _, e := range nonPvm {
+		if conflictSet[filepath.Clean(e)] {
 			movedConflicts = append(movedConflicts, e)
 		} else {
 			nonConflict = append(nonConflict, e)
 		}
 	}
 
-	// Put conflicting paths at the end (user PATH shims will take priority)
-	newEntries := append(nonConflict, movedConflicts...)
+	// 新系统 PATH = [pvm shims, pvm bin] + 非冲突项 + 冲突项(末尾)
+	newEntries := append(append([]string{}, pvmDirs...), nonConflict...)
+	newEntries = append(newEntries, movedConflicts...)
 	newPath := joinPath(newEntries)
 
-	// Write to system-level PATH and broadcast change
+	// 写入系统级 PATH 并广播变更。
+	// 关键：把"写 PATH"（必须成功）与"广播 WM_SETTINGCHANGE"（best-effort）分离，
+	// 并捕获 PowerShell 输出，避免静默 exit 1 却只报一句 "failed to update system PATH"。
 	escapedPath := escapePowerShellString(newPath)
-	psScript := "$newPath = '" + escapedPath + "'; " +
-		"[Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine'); " +
-		"Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; ' + " +
-		"'public class Win32Helper { [DllImport(\"user32.dll\", SetLastError=true, CharSet=CharSet.Auto)] ' + " +
-		"'public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, ' + " +
-		"'uint fuFlags, uint uTimeout, out UIntPtr lpdwResult); }' -ErrorAction SilentlyContinue; " +
-		"try { $HWND_BROADCAST = [IntPtr]0xffff; $WM_SETTINGCHANGE = 0x001A; $result = [UIntPtr]::Zero; " +
-		"'Win32Helper'::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null } catch {}"
+	psScript := fmt.Sprintf(
+		`$newPath = '%s'; `+
+			`try { [Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine') } `+
+			`catch { Write-Output ('SET_PATH_FAILED: ' + $_.Exception.Message); exit 2 }; `+
+			`try { `+
+			`Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class Win32HelperPvm { [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult); }' -ErrorAction SilentlyContinue; `+
+			`$HWND_BROADCAST = [IntPtr]0xffff; $WM_SETTINGCHANGE = 0x001A; $result = [UIntPtr]::Zero; `+
+			`[Win32HelperPvm]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result) | Out-Null `+
+			`} catch {}; `+
+			`exit 0`,
+		escapedPath)
 	encodedCmd := encodePowerShellCommand(psScript)
 	cmd := exec.Command("powershell", "-NoProfile", "-EncodedCommand", encodedCmd)
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to update system PATH: %w", err)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to update system PATH: %w (output: %s)", err, strings.TrimSpace(string(out)))
 	}
 
+	logger.Info("  OK Prepended pvm shims/bin to SYSTEM PATH (highest priority, overrides nvm/node):")
+	for _, d := range pvmDirs {
+		logger.Info("      - %s", d)
+	}
 	if len(movedConflicts) > 0 {
 		logger.Info("  OK Moved %d conflicting path(s) to end of system PATH:", len(movedConflicts))
 		for _, c := range movedConflicts {

@@ -66,6 +66,28 @@ func InstallTool(rt, version string, useMirror, force bool) (*ToolInstallInfo, e
 		return nil, fmt.Errorf("%s is not a tool runtime (supported: git, go)", rt)
 	}
 
+	// Git 特殊处理（Windows）：系统已装官方 Git for Windows 时，优先 adopt（建 junction），
+	// 不重复下载。必须在版本解析之前——version=="latest" 时 adopt 系统版本，
+	// 否则会被解析成远程最新版再下载。复用系统 git 自带的 bash（VSCode 可识别）和 SSH。
+	if rt == "git" && runtime.GOOS == "windows" {
+		if adoptedVer, ok := tryAdoptSystemGit(rt, version); ok && adoptedVer != "" {
+			version = adoptedVer
+			currentDir2 := filepath.Join(config.InstallsDir(), rt, "current")
+			if err := linkCurrent(config.InstallDir(rt, version), currentDir2); err != nil {
+				return nil, fmt.Errorf("link current: %w", err)
+			}
+			ensureToolVersionConfig(rt, version)
+			logger.Info("  ✓ Adopted system Git %s (junction, no download)", version)
+			return &ToolInstallInfo{
+				Runtime:     rt,
+				Version:     version,
+				InstallPath: config.InstallDir(rt, version),
+				CurrentPath: currentDir2,
+				BinPaths:    []string{config.ShimsDir()},
+			}, nil
+		}
+	}
+
 	// 解析精确版本
 	needsResolve := !registry.IsExactVersion(version)
 	if needsResolve {
@@ -151,9 +173,8 @@ func InstallTool(rt, version string, useMirror, force bool) (*ToolInstallInfo, e
 	if entries, err := os.ReadDir(rtDir); err == nil {
 		for _, e := range entries {
 			if e.IsDir() && e.Name() != version && e.Name() != "current" {
-				oldDir := filepath.Join(rtDir, e.Name())
-				logger.Verbose("  → Removing old version: %s", e.Name())
-				os.RemoveAll(oldDir)
+			logger.Verbose("  → Removing old version: %s", e.Name())
+			_ = removeVersionDir(rt, e.Name())
 			}
 		}
 	}
@@ -182,7 +203,7 @@ func InstallTool(rt, version string, useMirror, force bool) (*ToolInstallInfo, e
 
 	// 移动到版本目录
 	if force {
-		os.RemoveAll(versionDir)
+		_ = removeVersionDir(rt, version)
 	}
 	if err := os.MkdirAll(filepath.Dir(versionDir), 0755); err != nil {
 		os.RemoveAll(extractTmp)
@@ -209,7 +230,7 @@ func InstallTool(rt, version string, useMirror, force bool) (*ToolInstallInfo, e
 		fixGitHardlinks(versionDir)
 	}
 
-	// 写入用户级版本配置，使 pvm-shim → shim-exec 能解析到版本
+	// 写入用户级版本配置，使 pvm shim-exec 能解析到版本
 	ensureToolVersionConfig(rt, version)
 
 	// 注：shim.Reshim() 由调用者负责调用，避免循环依赖
@@ -238,7 +259,7 @@ func InstallTool(rt, version string, useMirror, force bool) (*ToolInstallInfo, e
 }
 
 // ensureToolVersionConfig 确保工具型运行时（git/go）在用户级版本配置中存在条目。
-// 统一 shim 方案下，pvm-shim → pvm shim-exec → ResolveVersion 需要版本配置才能解析，
+// 单二进制方案下，pvm → pvm shim-exec → ResolveVersion 需要版本配置才能解析，
 // 否则会报 "no version configured"。工具型运行时安装后应立即可用，故自动写入。
 func ensureToolVersionConfig(rt, version string) {
 	cwd, _ := os.Getwd()
@@ -384,6 +405,121 @@ func ensureShimsInPathUnix(shimsDir string) error {
 	return nil
 }
 
+// detectSystemGit 检测系统已安装的官方 Git for Windows，返回安装根目录和版本。
+// 扫描 Program Files、LOCALAPPDATA 及系统 PATH（跳过 pvm shims）。
+func detectSystemGit() (dir, version string, found bool) {
+	if runtime.GOOS != "windows" {
+		return "", "", false
+	}
+	var candidates []string
+	for _, env := range []string{"ProgramFiles", "ProgramFiles(x86)"} {
+		if p := os.Getenv(env); p != "" {
+			candidates = append(candidates, filepath.Join(p, "Git"))
+		}
+	}
+	if la := os.Getenv("LOCALAPPDATA"); la != "" {
+		candidates = append(candidates, filepath.Join(la, "Programs", "Git"))
+	}
+	if sysGit, err := config.SystemCommandPath("git"); err == nil {
+		// git.exe 通常在 cmd/ 或 bin/，安装根目录是上两级
+		d := filepath.Dir(filepath.Dir(sysGit))
+		if d != "." && d != string(filepath.Separator) {
+			candidates = append(candidates, d)
+		}
+	}
+	pvmHomeLower := strings.ToLower(filepath.Clean(config.PvmHome()))
+	for _, c := range candidates {
+		if c == "" {
+			continue
+		}
+		// 排除 pvm 自己管理的目录（如 ~/.pvm/installs/git/current），
+		// 避免 ensureGitBashInUserPath 把 current/bin 加入 PATH 后，pvm 把自己的 git 误当系统 git
+		if strings.HasPrefix(strings.ToLower(filepath.Clean(c)), pvmHomeLower) {
+			continue
+		}
+		gitExe := filepath.Join(c, "cmd", "git.exe")
+		if _, err := os.Stat(gitExe); err != nil {
+			gitExe = filepath.Join(c, "bin", "git.exe")
+			if _, err := os.Stat(gitExe); err != nil {
+				continue
+			}
+		}
+		out, err := exec.Command(gitExe, "--version").Output()
+		if err != nil {
+			continue
+		}
+		ver := parseGitVersionOutput(string(out))
+		if ver == "" {
+			continue
+		}
+		return c, ver, true
+	}
+	return "", "", false
+}
+
+// parseGitVersionOutput 解析 "git version 2.43.0.windows.1" → "2.43.0"
+func parseGitVersionOutput(s string) string {
+	s = strings.TrimSpace(s)
+	fields := strings.Fields(s)
+	if len(fields) < 3 || fields[0] != "git" || fields[1] != "version" {
+		return ""
+	}
+	v := fields[2]
+	if i := strings.Index(v, ".windows"); i >= 0 {
+		v = v[:i]
+	}
+	return v
+}
+
+// tryAdoptSystemGit 尝试把系统已装的 git 纳入 pvm 管理（建 junction，不下载）。
+// requested 为 "latest" 或与系统版本一致时才 adopt；返回 adopt 后的版本号 + 是否已 adopt。
+func tryAdoptSystemGit(rt, requested string) (string, bool) {
+	sysDir, sysVer, found := detectSystemGit()
+	if !found {
+		return "", false
+	}
+	if requested != "latest" && requested != sysVer {
+		logger.Info("  ℹ  system Git is %s, requested %s — will download", sysVer, requested)
+		return "", false
+	}
+	versionDir := config.InstallDir(rt, sysVer)
+	// 若已存在（旧 adopt 或旧下载），先安全移除
+	if _, err := os.Lstat(versionDir); err == nil {
+		_ = removeVersionDir(rt, sysVer)
+	}
+	if err := os.MkdirAll(filepath.Dir(versionDir), 0755); err != nil {
+		return "", false
+	}
+	// 创建 junction：installs/git/<ver>/ → 系统安装目录
+	cmd := exec.Command("cmd", "/c", "mklink", "/J", versionDir, sysDir)
+	if err := cmd.Run(); err != nil {
+		logger.Verbose("  → adopt git: mklink failed: %v", err)
+		return "", false
+	}
+	// marker：标记此版本是 adopted junction，卸载时只删 junction 不删系统文件
+	_ = os.WriteFile(adoptedMarkerPath(rt, sysVer), []byte(sysDir), 0644)
+	return sysVer, true
+}
+
+// adoptedMarkerPath 返回标记某版本为 adopted junction 的 marker 文件路径。
+func adoptedMarkerPath(rt, ver string) string {
+	return filepath.Join(config.InstallsDir(), rt, ".adopted-"+ver)
+}
+
+// removeVersionDir 安全移除版本目录。
+// adopted（junction）版本用 os.Remove（只删 junction，不穿透删目标）；普通下载版本用 os.RemoveAll。
+// 关键：os.RemoveAll 会穿透 junction 删掉系统 git 的文件，绝不能用于 adopted 版本。
+func removeVersionDir(rt, ver string) error {
+	dir := config.InstallDir(rt, ver)
+	if _, err := os.Stat(adoptedMarkerPath(rt, ver)); err == nil {
+		// adopted junction：os.Remove 只删 junction 本身
+		_ = os.Remove(dir)
+		_ = os.Remove(adoptedMarkerPath(rt, ver))
+		return nil
+	}
+	return os.RemoveAll(dir)
+}
+
 // UninstallTool 卸载工具型运行时
 func UninstallTool(rt string) error {
 	if !IsToolRuntime(rt) {
@@ -411,10 +547,22 @@ func UninstallTool(rt string) error {
 		}
 	}
 
-	// 移除整个 runtime 目录
-	if err := os.RemoveAll(rtDir); err != nil {
-		return fmt.Errorf("remove: %w", err)
+	// 移除所有版本目录（adopted 的是 junction，必须用 removeVersionDir 安全移除，
+	// 否则 os.RemoveAll 会穿透 junction 删掉系统 git 的文件）
+	entries, _ := os.ReadDir(rtDir)
+	for _, e := range entries {
+		name := e.Name()
+		if name == "current" {
+			continue // current junction 已在上面 rmdir
+		}
+		if e.IsDir() {
+			_ = removeVersionDir(rt, name)
+		} else {
+			_ = os.Remove(filepath.Join(rtDir, name)) // marker 文件等
+		}
 	}
+	// rtDir 现在应为空，os.Remove 只删空目录不会穿透
+	_ = os.Remove(rtDir)
 
 	// 注：shim.Reshim() 由调用者负责调用，避免循环依赖
 
