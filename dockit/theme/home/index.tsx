@@ -601,6 +601,14 @@ const BottomCTA = function () {
             查看详情 →
           </a>
         </div>
+        <div className={styles.footerDivider} />
+        <div className={styles.footerSection}>
+          <h4 className={styles.footerTitle}>链接</h4>
+          <p className={styles.footerDesc}>GitHub · Release · MIT</p>
+          <a href="https://github.com/Lycorxy/pvm" className={styles.footerLink} target="_blank" rel="noopener">
+            GitHub →
+          </a>
+        </div>
       </div>
       <div className={styles.footerCopyright}>
         <p>© {new Date().getFullYear()} PVM · Polyglot Version Manager · 基于 shim 驱动</p>

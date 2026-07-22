@@ -39,6 +39,7 @@ pvm install --official node@20.11.0      # 强制走官方源
 - `--system` 不能用于 install（系统版本无需下载）。
 - `rust` / `go` / `git` 不支持 `--local`，只能用户级安装（全局唯一版本）。
 - `bun` / `deno` 支持项目级版本管理，行为与 `node` 相同。
+- `git` 在 Windows 上如果系统已有 Git for Windows，会自动 **adopt**（建 junction，不下载），详见[运行时与镜像源](/config/runtimes#git-特殊处理windows)。
 - 安装完成后自动 `reshim`，新命令立即可用。
 
 :::warning 注意

@@ -8,12 +8,20 @@ description: PVM 常见故障与对应排查命令。
 | 现象 | 可能原因 | 排查 / 解决 |
 | ---- | -------- | ----------- |
 | `pvm` 命令找不到 | PATH 未包含 shims | `pvm setup-path` 并检查用户 PATH |
-| `node` 仍是系统旧版本 | shim 未优先于系统 PATH | `pvm which node` 看解析结果；调整 PATH 顺序 |
+| `node` 仍是系统 / nvm 旧版本 | 系统 PATH 中有 `D:\node` 等覆盖了 pvm shims | 重跑 `pvm setup`，它会自动提权把 pvm shims **前置到系统 PATH 最前** |
+| `pvm use node@18` 后 `node -v` 没变 | IDE 缓存了旧的 PATH | **完全退出 IDE 再重开**（不要只用 reload window） |
 | 装了版本但命令没有 | shim 未生成 | `pvm reshim` |
 | 安装报 403 / GitHub 限流 | 默认镜像源偶发 | 加 `--official` 或等待自动降级重试 |
 | `pvm use` 不生效 | 当前目录无 `.pvmrc` 且用户全局也为空 | 先 `pvm use node@x` 写用户默认 |
 | 版本解析异常 | 环境变量 / `.pvmrc` / 全局 冲突 | `pvm diagnostics node` 看完整链路 |
 | shim 与版本不一致 | 手动删过版本目录 | `pvm validate --auto-fix` |
+| VSCode 识别不到 Git Bash | git/current/bin 未加入用户 PATH | `pvm use git` 重新触发 PATH 更新，然后完全退出 VSCode 重开 |
+| `pvm use git` 报 `install dir not found` | pvm 把自己的 git 路径当系统 git 导致循环 junction | `pvm install git` 重新下载即可 |
+
+:::tip 关于 IDE 环境变量缓存
+VSCode / CodeBuddy 等编辑器在启动时读一次 PATH 并缓存。切换版本后必须**完全退出编辑器**（File → Exit），
+再重新打开，内置终端才会拿到新版本的 node / git。仅 "Reload Window" 不够。
+:::
 
 ## 诊断命令速查
 

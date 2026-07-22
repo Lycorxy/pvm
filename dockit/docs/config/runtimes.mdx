@@ -17,10 +17,28 @@ description: PVM 支持的运行时清单、作用域限制与下载镜像源配
 | `deno` | ✅ | ✅ | ✅ | Node.js 替代品 |
 | `rust` | ✅ | ❌ | ✅ | 全局唯一，仅用户/系统 |
 | `go` | ✅ | ❌ | ✅ | 全局唯一，仅用户/系统 |
-| `git` | ✅ | ❌ | ✅ | 全局唯一，仅用户/系统 |
+| `git` | ✅ | ❌ | ✅ | 全局唯一，仅用户/系统；Windows 上 detect 系统 Git 自动 adopt |
 
 别名已自动映射：`nodejs`→`node`、`golang`→`go`、`py`→`python`、
 `npm`/`npx`/`corepack`→`node`、`nodejs`→`node`。
+
+## Git 特殊处理（Windows）
+
+如果你已通过官方安装器装了 Git for Windows（默认路径 `C:\Program Files\Git`），
+`pvm use git`（或 `pvm install git`）会**自动检测系统 Git 并纳入管理**（建 junction，不重新下载）：
+
+```bash
+pvm use git
+# ✓ Adopted system Git 2.43.0 (junction, no download)
+```
+
+这样做的好处：
+- 不重复下载，零磁盘占用。
+- 复用系统 Git 自带的 **bash**（VSCode 可识别 Git Bash）和已配好的 **SSH**。
+- 版本切换统一走 pvm，体验一致（`pvm use git@2.50.0` 会下载新版本替换）。
+
+如果系统 Git 版本与你请求的版本不一致，则正常下载对应版本。卸载 adopted 版本时只删 junction，
+不删系统文件。
 
 ## 包管理器依赖
 

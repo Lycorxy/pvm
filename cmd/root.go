@@ -106,15 +106,6 @@ func Execute() error {
 		return runDiagnostics(args)
 	case "config", "cfg":
 		return runConfig(args)
-	case "git":
-		if len(args) > 0 && args[0] == "ssh" {
-			return runGitSSH(args[1:])
-		}
-		fmt.Fprintf(os.Stderr, "Unknown git subcommand: %s\n\n", args[0])
-		printGitSSHUsage()
-		return fmt.Errorf("unknown git subcommand: %s", args[0])
-	case "ssh-config":
-		return runGitSSH(args)
 	case "version", "-v", "--version":
 		fmt.Printf("pvm %s\n", Version)
 		return nil
@@ -157,10 +148,6 @@ System:
   uninstall            Uninstall pvm from this machine
   version              Show pvm version
   help                 Show this help
-
-Git SSH:
-  git ssh              Configure SSH for Git platforms (GitHub/GitLab/Gitee)
-  ssh-config           Alias for 'git ssh'
 
 Global flags:
   --verbose, -V        Show detailed output
@@ -304,6 +291,12 @@ func hasFlag(args []string, flags ...string) ([]string, bool) {
 //
 //	os.Args[0] 在 Windows 上常常只是 "node" 这样的命令名，
 //	无法用来判断是否在 shims 目录下。
+//
+// 检测两个目录：
+//  1. ~/.pvm/shims/ —— 所有命令 shim（硬链接 pvm.exe）的标准位置
+//  2. ~/.pvm/bin/ —— git/bash/sh 等命令的 pvm.exe 硬链接副本（供 IDE 识别）。
+//     bin/ 里也有真实 exe 副本（python.exe/go.exe 直接复制的），必须用 os.SameFile
+//     判断是否与 pvm.exe 共享 inode，避免把真实二进制误当 shim 拦截。
 func shimExeNameFromArgv0() string {
 	exePath, err := os.Executable()
 	if err != nil || exePath == "" {
@@ -317,30 +310,50 @@ func shimExeNameFromArgv0() string {
 		return ""
 	}
 
-	// 必须位于 shims 目录下才认为是 shim 调用，避免误判
+	// 必须位于 shims 或 bin 目录下才认为是 shim 调用，避免误判
 	// 使用 filepath.Abs + 大小写不敏感比较，处理 Windows 8.3 短路径名问题
 	shimsDir := config.ShimsDir()
+	binDir := config.BinHome()
 	absExe, err1 := filepath.Abs(exePath)
 	absShims, err2 := filepath.Abs(shimsDir)
-	if err1 != nil || err2 != nil {
-		// 如果无法获取绝对路径，回退到简单字符串比较
+	absBin, err3 := filepath.Abs(binDir)
+
+	// 辅助：判断 absExe 是否在 target 目录下（大小写不敏感）
+	inDir := func(target string) bool {
+		if runtime.GOOS == "windows" {
+			return strings.EqualFold(absExe, target) ||
+				strings.HasPrefix(strings.ToLower(absExe), strings.ToLower(target)+string(os.PathSeparator))
+		}
+		return absExe == target || strings.HasPrefix(absExe, target+string(os.PathSeparator))
+	}
+
+	if err1 != nil || err2 != nil || err3 != nil {
+		// 路径解析失败，回退到简单字符串前缀比较
 		lowerExe := strings.ToLower(filepath.ToSlash(exePath))
-		lowerShims := strings.ToLower(filepath.ToSlash(shimsDir))
-		if strings.HasPrefix(lowerExe, lowerShims) {
-			return name
+		for _, dir := range []string{shimsDir, binDir} {
+			lowerDir := strings.ToLower(filepath.ToSlash(dir))
+			if strings.HasPrefix(lowerExe, lowerDir) {
+				return name
+			}
 		}
 		return ""
 	}
 
-	// Windows 下使用 EqualFold 做大小写不敏感比较
-	if runtime.GOOS == "windows" {
-		if !strings.EqualFold(absExe, absShims) && !strings.HasPrefix(strings.ToLower(absExe), strings.ToLower(absShims)+string(os.PathSeparator)) {
-			return ""
-		}
-	} else {
-		if absExe != absShims && !strings.HasPrefix(absExe, absShims+string(os.PathSeparator)) {
-			return ""
+	// 1. shims/ 目录：所有文件都是 pvm.exe 硬链接，直接返回命令名
+	if inDir(absShims) {
+		return name
+	}
+
+	// 2. bin/ 目录：只有与 pvm.exe 同 inode 的才是 shim（git/bash/sh 等硬链接），
+	//    真实 exe 副本（python.exe/go.exe 直接复制的）不能拦截，否则会劫持真实工具
+	if inDir(absBin) {
+		pvmExe := filepath.Join(absBin, "pvm"+config.ExeExt())
+		exeStat, e1 := os.Stat(absExe)
+		pvmStat, e2 := os.Stat(pvmExe)
+		if e1 == nil && e2 == nil && os.SameFile(exeStat, pvmStat) {
+			return name
 		}
 	}
-	return name
+
+	return ""
 }

@@ -52,10 +52,6 @@ export const routerConfig: RouterExport = {
           { text: 'self-update / uninstall', link: '/commands/self' },
         ],
       },
-      {
-        text: 'Git SSH',
-        items: [{ text: 'git ssh', link: '/commands/git-ssh' }],
-      },
     ],
     '/config': [
       {

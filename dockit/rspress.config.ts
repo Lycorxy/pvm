@@ -70,7 +70,7 @@ const config = {
       {
         icon: 'github',
         mode: 'link',
-        content: 'https://github.com/pvm/pvm',
+        content: 'https://github.com/Lycorxy/pvm',
       },
     ],
 

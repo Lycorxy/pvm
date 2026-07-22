@@ -19,6 +19,25 @@ PVM 是**多语言统一**的版本管理器：一个工具管 node、python、g
 二者是"全局唯一"型工具，实际场景中很少出现"项目 A 用 go 1.21、项目 B 用 go 1.22"的强需求，
 全局一份即可，因此 PVM 约束它们只能用户级 / 系统级。
 
+## 为什么只下载一个 exe 文件，没有分开的 shim 文件？
+
+PVM 是**单一二进制**设计——`pvm` 本身既是管理工具，也是 shim 源。
+`reshim` 把 `~/.pvm/bin/pvm` 硬链接为 `node`、`npm`、`git` 等命令名，
+pvm 启动时按自身文件名分发到对应版本。一个文件搞定，不会出现"忘了下载 shim 导致装不上"的问题。
+
+## 已经装了 nvm，pvm 的 node 能生效吗？
+
+能。`pvm setup` 会检测系统 PATH 中的 nvm 路径（如 `D:\node`、`D:\nvm`），
+自动提权把 pvm shims **前置到系统 PATH 最前**（排在 nvm 前面），pvm 管理的 node 会优先生效。
+nvm 的路径保留在末尾，确认 pvm 正常后可手动从系统 PATH 删除。
+
+## Windows 上 `pvm use git` 会重新下载整个 git 吗？
+
+不会。如果你已通过官方安装器装了 Git for Windows，`pvm use git` 会自动检测系统 Git
+并 **adopt（接管）**——建一个 junction 指向系统安装目录，不重复下载。
+复用系统 Git 自带的 bash（VSCode 可识别 Git Bash）和已配好的 SSH。
+卸载时只删 junction，不删系统文件。
+
 ## 安装后命令找不到怎么办？
 
 先 `pvm reshim` 重新生成 shim；若仍不行，用 `pvm setup-path` 检查 PATH。

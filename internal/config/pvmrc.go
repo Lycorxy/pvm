@@ -11,12 +11,6 @@ import (
 // 版本声明文件名（仅 .pvmrc）
 var VersionFileNames = []string{".pvmrc"}
 
-// NodeOnlyFileNames 仅声明 Node 版本的文件
-var NodeOnlyFileNames = []string{".nvmrc", ".node-version"}
-
-// PythonOnlyFileNames 仅声明 Python 版本的文件
-var PythonOnlyFileNames = []string{".python-version"}
-
 // VersionFile 表示一个版本声明文件
 type VersionFile struct {
 	Path     string            // 文件绝对路径
@@ -49,49 +43,12 @@ func FindVersionFile(startDir string) (*VersionFile, error) {
 				return LoadVersionFile(p)
 			}
 		}
-		// 再尝试 runtime 专属文件（.nvmrc 等）
-		if vf := tryRuntimeSpecific(dir); vf != nil {
-			return vf, nil
-		}
-
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			return nil, nil // 到达根目录
 		}
 		dir = parent
 	}
-}
-
-// tryRuntimeSpecific 尝试读取 .nvmrc / .python-version 等单 runtime 文件
-func tryRuntimeSpecific(dir string) *VersionFile {
-	vf := &VersionFile{Versions: make(map[string]string)}
-	found := false
-
-	for _, name := range NodeOnlyFileNames {
-		p := filepath.Join(dir, name)
-		if v, ok := readSingleLineVersion(p); ok {
-			vf.Versions["node"] = v
-			vf.Path = p
-			found = true
-			break
-		}
-	}
-	for _, name := range PythonOnlyFileNames {
-		p := filepath.Join(dir, name)
-		if v, ok := readSingleLineVersion(p); ok {
-			vf.Versions["python"] = v
-			if vf.Path == "" {
-				vf.Path = p
-			}
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return nil
-	}
-	return vf
 }
 
 // LoadVersionFile 解析版本声明文件（.pvmrc）
@@ -193,7 +150,7 @@ const SystemVersion = "system"
 // ResolveVersion 解析当前目录应该使用的版本
 // 查找顺序：
 //  1. 环境变量 PVM_<RT>_VERSION（例如 PVM_NODE_VERSION）
-//  2. 向上查找 .pvmrc / .nvmrc（项目级 local 配置）
+//  2. 向上查找 .pvmrc（项目级 local 配置）
 //  3. 用户全局默认版本 ~/.pvm/versions（user 配置）
 //  4. 系统 PATH 中的全局安装（system fallback，返回 "system"）
 //
@@ -205,7 +162,7 @@ func ResolveVersion(rt, startDir string) (string, string) {
 		return strings.TrimPrefix(v, "v"), "env:" + envKey
 	}
 
-	// 2) 项目声明 local（.pvmrc / .nvmrc 等）
+	// 2) 项目声明 local（.pvmrc）
 	// 全局唯一 runtime（如 git）跳过项目层，避免历史 .pvmrc 中遗留的条目误生效
 	if !IsGlobalOnly(rt) {
 		if vf, _ := FindVersionFile(startDir); vf != nil {
@@ -386,20 +343,6 @@ func RemoveProjectVersion(dir, rt string) (string, error) {
 	}
 	delete(existing, rt)
 	return target, SaveVersionFile(target, existing)
-}
-
-// readSingleLineVersion 读取只有一行版本号的文件（.nvmrc 风格）
-func readSingleLineVersion(path string) (string, bool) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", false
-	}
-	v := strings.TrimSpace(string(data))
-	v = strings.TrimPrefix(v, "v")
-	if v == "" {
-		return "", false
-	}
-	return v, true
 }
 
 func fileExists(p string) bool {
