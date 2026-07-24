@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200, initial-scale=1">
+<title>PVM 技术架构</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#f8fafc;
+  padding:50px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+}
+.wrap{
+  max-width:1050px;
+  margin:0 auto;
+}
+.title{
+  text-align:center;
+  font-size:26px;
+  font-weight:800;
+  color:#0f172a;
+  margin-bottom:42px;
+}
+
+/* --- layer --- */
+.layer{
+  border-radius:18px;
+  padding:28px 34px 24px;
+  margin-bottom:22px;
+  border:1px solid transparent;
+}
+.layer h3{
+  font-size:12px;font-weight:700;text-transform:uppercase;
+  letter-spacing:1.5px;margin-bottom:18px;
+}
+
+/* item grid */
+.grid{
+  display:flex;flex-wrap:wrap;gap:12px;
+}
+
+/* block */
+.blk{
+  background:#fff;
+  border-radius:10px;
+  padding:16px 20px;
+  font-size:14px;
+  font-weight:600;
+  color:#1e293b;
+  box-shadow:0 1px 2px rgba(0,0,0,.03);
+  border:1px solid #f1f5f9;
+}
+.blk .label{font-size:11px;color:#94a3b8;font-weight:400;margin-top:4px;line-height:1.5}
+.blk.accent{background:#fff;border:1.5px solid #c4b5fd}
+.blk.accent .label{color:#7c3aed}
+
+/* colors */
+.l1{background:#fef9c3;border-color:#fde047}.l1 h3{color:#854d0e}
+.l2{background:#dbeafe;border-color:#93c5fd}.l2 h3{color:#1e40af}
+.l3{background:#ede9fe;border-color:#c4b5fd}.l3 h3{color:#5b21b6}
+.l4{background:#d1fae5;border-color:#6ee7b7}.l4 h3{color:#065f46}
+
+/* plugin row */
+.plugin-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.plugin-row .iface{
+  background:#fff;border:2px dashed #a78bfa;border-radius:10px;
+  padding:14px 20px;font-size:14px;font-weight:700;color:#6d28d9;
+}
+.plugin-row .iface small{
+  display:block;font-size:11px;color:#a78bfa;font-weight:400;margin-top:3px;
+}
+.badge{
+  background:#fff;border:1.5px solid #ddd6fe;border-radius:20px;
+  padding:7px 18px;font-size:13px;font-weight:600;color:#5b21b6;
+}
+.spacer{color:#cbd5e1;font-size:18px;font-weight:300}
+
+/* method list */
+.methods{
+  display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;
+}
+.method{
+  font-size:11px;color:#7c3aed;background:#fff;
+  border:1px solid #ede9fe;border-radius:6px;
+  padding:5px 12px;font-family:'SF Mono',Consolas,monospace;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="title">PVM 技术架构 —— 四层设计</div>
+
+  <!-- Layer 1: CLI -->
+  <div class="layer l1">
+    <h3>CLI 命令层</h3>
+    <div class="grid">
+      <div class="blk">install<span class="label">安装运行时</span></div>
+      <div class="blk">use<span class="label">版本切换</span></div>
+      <div class="blk">list<span class="label">已安装 / 远程版本</span></div>
+      <div class="blk">config<span class="label">.pvmrc 管理</span></div>
+      <div class="blk">doctor<span class="label">健康检查，就一次</span></div>
+      <div class="blk">setup<span class="label">环境修复</span></div>
+      <div class="blk">remove<span class="label">卸载版本</span></div>
+    </div>
+  </div>
+
+  <!-- Layer 2: Engine -->
+  <div class="layer l2">
+    <h3>核心引擎</h3>
+    <div class="grid">
+      <div class="blk accent">
+        shim/
+        <span class="label">硬链接生成 + 自分发 · 200 行</span>
+      </div>
+      <div class="blk accent">
+        config/
+        <span class="label">.pvmrc 解析 + 版本冲突检测</span>
+      </div>
+      <div class="blk accent">
+        installer/
+        <span class="label">下载 → 解压 → flatten → 校验</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layer 3: Plugins -->
+  <div class="layer l3">
+    <h3>插件层 —— 加新语言不动核心代码</h3>
+    <div class="plugin-row">
+      <div class="iface">
+        🔌 RuntimePlugin 接口
+        <small>Name · Shims · Install · Validate · GetDownloadURL · ListInstalled</small>
+      </div>
+      <span class="spacer">→</span>
+      <div class="badge">Node.js</div>
+      <div class="badge">Python</div>
+      <div class="badge">Rust</div>
+      <div class="badge">Go</div>
+      <div class="badge">Bun</div>
+      <div class="badge">Deno</div>
+      <div class="badge">Git</div>
+      <div class="badge">pnpm</div>
+      <div class="badge">Yarn</div>
+      <span class="spacer" style="font-size:14px">+ 可扩展</span>
+    </div>
+  </div>
+
+  <!-- Layer 4: Infra -->
+  <div class="layer l4">
+    <h3>基础设施</h3>
+    <div class="grid">
+      <div class="blk">download/<span class="label">HTTP 下载 + 进度条 + 重试 + SHA256</span></div>
+      <div class="blk">archive/<span class="label">tar.gz / zip / 7z 解压</span></div>
+      <div class="blk">registry/<span class="label">自动切换国内镜像</span></div>
+      <div class="blk">semver/<span class="label">版本解析与比较</span></div>
+      <div class="blk">filelock/<span class="label">跨平台文件锁 · 防并发安装</span></div>
+      <div class="blk">compat/<span class="label">前置依赖兼容性检查</span></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

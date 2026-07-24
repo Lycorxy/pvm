@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200, initial-scale=1">
+<title>Shim 拦截流程</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#f8fafc;
+  padding:60px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+}
+.wrap{
+  max-width:1100px;
+  margin:0 auto;
+}
+.title{
+  text-align:center;
+  font-size:26px;
+  font-weight:800;
+  color:#0f172a;
+  margin-bottom:8px;
+  letter-spacing:-.3px;
+}
+.subtitle{
+  text-align:center;
+  font-size:15px;
+  color:#64748b;
+  margin-bottom:50px;
+}
+/* --- flow row --- */
+.flow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+  margin-bottom:50px;
+}
+.card{
+  width:155px;
+  background:#fff;
+  border-radius:16px;
+  padding:28px 16px 22px;
+  text-align:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.04);
+  border:1px solid #e2e8f0;
+  transition:transform .15s;
+}
+.card .icon{font-size:32px;margin-bottom:12px}
+.card .name{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:6px;line-height:1.4}
+.card .detail{font-size:12px;color:#64748b;line-height:1.5}
+.card .detail code{
+  background:#f1f5f9;padding:3px 7px;border-radius:5px;
+  font-family:'SF Mono','Fira Code','Cascadia Code',Consolas,monospace;
+  font-size:11px;color:#334155;white-space:nowrap;
+}
+.card.accent{border-color:#c4b5fd;background:linear-gradient(180deg,#faf5ff 0%,#fff 100%)}
+.card.accent .name{color:#7c3aed}
+
+/* arrow */
+.arrow{
+  width:56px;height:40px;
+  display:flex;align-items:center;justify-content:center;
+}
+.arrow svg{width:48px;height:30px}
+.arrow path{stroke:#cbd5e1;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.arrow.accent path{stroke:#a78bfa}
+
+/* --- note --- */
+.note{
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:14px;
+  padding:28px 34px;
+  box-shadow:0 1px 3px rgba(0,0,0,.03);
+}
+.note h3{font-size:15px;font-weight:700;color:#0f172a;margin-bottom:14px}
+.note ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+.note li{
+  font-size:13px;color:#475569;line-height:1.6;
+  padding-left:22px;position:relative;
+}
+.note li::before{
+  content:'';position:absolute;left:0;top:7px;
+  width:7px;height:7px;border-radius:50%;background:#7c3aed;
+}
+.note li code{
+  background:#f1f5f9;padding:2px 6px;border-radius:4px;
+  font-family:'SF Mono','Fira Code',Consolas,monospace;
+  font-size:12px;color:#334155;
+}
+.note li strong{color:#0f172a}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="title">Shim 自分发 —— 硬链接拦截流程</div>
+  <div class="subtitle">用户敲下 <code style="background:#f1f5f9;padding:2px 8px;border-radius:4px;font-family:monospace">node -v</code> 后，系统到底做了什么</div>
+
+  <div class="flow">
+    <div class="card">
+      <div class="icon">⌨️</div>
+      <div class="name">用户敲命令</div>
+      <div class="detail"><code>node -v</code></div>
+    </div>
+
+    <div class="arrow"><svg viewBox="0 0 48 30"><path d="M4 15h36M34 7l8 8-8 8"/></svg></div>
+
+    <div class="card">
+      <div class="icon">🔍</div>
+      <div class="name">Shell 查找</div>
+      <div class="detail">PATH 中找 node<br/><code>~/.pvm/shims/node</code></div>
+    </div>
+
+    <div class="arrow"><svg viewBox="0 0 48 30"><path d="M4 15h36M34 7l8 8-8 8"/></svg></div>
+
+    <div class="card">
+      <div class="icon">⚡</div>
+      <div class="name">pvm 启动</div>
+      <div class="detail">硬链接 = pvm.exe<br/>发现自己叫 node</div>
+    </div>
+
+    <div class="arrow accent"><svg viewBox="0 0 48 30"><path d="M4 15h36M34 7l8 8-8 8"/></svg></div>
+
+    <div class="card">
+      <div class="icon">📋</div>
+      <div class="name">读取 .pvmrc</div>
+      <div class="detail">当前目录<br/><code>node = 20.11.0</code></div>
+    </div>
+
+    <div class="arrow accent"><svg viewBox="0 0 48 30"><path d="M4 15h36M34 7l8 8-8 8"/></svg></div>
+
+    <div class="card accent">
+      <div class="icon">🎯</div>
+      <div class="name">转发执行</div>
+      <div class="detail">真实二进制<br/><code>installs/.../node.exe</code></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <h3>关键设计</h3>
+    <ul>
+      <li><strong>硬链接，不是 Shell 脚本。</strong>nvm、asdf 的 shim 是 bash 脚本，Windows 跑不起来。PVM 的 <code>shims/node</code> 是 <code>pvm.exe</code> 的硬链接，Windows / macOS / Linux 一套逻辑，零 Shell 依赖。</li>
+      <li><strong>实时读取 .pvmrc。</strong>每次调用自动读当前目录的配置文件，cd 进去那一刻版本就已经对了，不需要手动 <code>pvm use</code>。</li>
+      <li><strong>零额外磁盘。</strong>所有 shim 指向同一个二进制，不占多余空间。</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

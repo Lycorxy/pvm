@@ -1,0 +1,6 @@
+flowchart LR
+    A["用户敲 node -v"] --> B["Shell 找到<br/>~/.pvm/shims/node"]
+    B --> C["pvm 主程序启动<br/>发现自己是 'node'"]
+    C --> D["读取 .pvmrc<br/>解析 node = 20.11.0"]
+    D --> E["转发给真实二进制<br/>installs/node/20.11.0/"]
+    E --> F["返回结果"]

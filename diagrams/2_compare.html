@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200, initial-scale=1">
+<title>传统方式 vs PVM</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#f8fafc;
+  padding:60px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+}
+.wrap{
+  max-width:1100px;
+  margin:0 auto;
+}
+.title{
+  text-align:center;
+  font-size:26px;
+  font-weight:800;
+  color:#0f172a;
+  margin-bottom:8px;
+}
+.subtitle{
+  text-align:center;
+  font-size:15px;
+  color:#64748b;
+  margin-bottom:50px;
+}
+
+/* two columns */
+.cols{display:flex;gap:32px}
+.col{flex:1;display:flex;flex-direction:column;gap:20px}
+
+/* card */
+.card{
+  background:#fff;
+  border-radius:18px;
+  padding:32px 28px 28px;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.card h3{
+  font-size:17px;font-weight:700;margin-bottom:6px;
+  display:flex;align-items:center;gap:8px;
+}
+.card h3 .tag{
+  font-size:12px;font-weight:600;padding:3px 10px;border-radius:100px;
+}
+.card .sub{font-size:13px;color:#64748b;margin-bottom:24px}
+
+/* steps */
+.steps{display:flex;flex-direction:column}
+.step{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;
+  border-radius:10px;
+  position:relative;
+}
+.step .num{
+  width:34px;height:34px;border-radius:50%;
+  font-size:14px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.step .txt{font-size:14px;color:#334155;line-height:1.5;flex:1}
+.step .txt code{
+  background:#fff;padding:2px 7px;border-radius:4px;
+  font-family:'SF Mono',Consolas,monospace;font-size:12px;
+}
+.step .txt small{display:block;font-size:11px;color:#94a3b8;margin-top:2px}
+
+/* connector line */
+.conn{height:0;margin-left:33px;position:relative}
+.conn::before{
+  content:'';position:absolute;left:16px;top:0;width:2px;height:20px;background:#e2e8f0;
+}
+
+/* bad column */
+.bad .card{border-top:4px solid #ef4444}
+.bad h3{color:#dc2626}
+.bad .tag{background:#fef2f2;color:#dc2626}
+.bad .num{background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca}
+.bad .step.fail{background:#fef2f2;border:1.5px solid #fecaca}
+.bad .step.fail .txt{color:#b91c1c;font-weight:600}
+.bad .conn::before{background:#fecaca}
+.bad .result{
+  text-align:center;margin-top:20px;padding:14px;
+  background:#fef2f2;border-radius:10px;
+  font-size:14px;font-weight:700;color:#dc2626;
+}
+
+/* good column */
+.good .card{border-top:4px solid #10b981}
+.good h3{color:#059669}
+.good .tag{background:#ecfdf5;color:#059669}
+.good .num{background:#ecfdf5;color:#059669;border:1.5px solid #a7f3d0}
+.good .step.ok{background:#ecfdf5;border:1.5px solid #a7f3d0}
+.good .step.ok .txt{color:#065f46;font-weight:600}
+.good .conn::before{background:#a7f3d0}
+.good .result{
+  text-align:center;margin-top:20px;padding:14px;
+  background:#ecfdf5;border-radius:10px;
+  font-size:14px;font-weight:700;color:#059669;
+}
+
+/* VS  */
+.vs{display:flex;align-items:center;justify-content:center}
+.vs span{
+  font-size:28px;font-weight:900;color:#cbd5e1;
+  padding:0 4px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="title">下载一个 Skill，跑起来要多久？</div>
+  <div class="subtitle">同样的场景，传统方式 vs PVM 方式的对比</div>
+
+  <div class="cols">
+
+    <!-- bad -->
+    <div class="col bad">
+      <div class="card">
+        <h3>❌ <span class="tag">传统方式</span></h3>
+        <div class="sub">没有版本管理，全靠手动装环境</div>
+        <div class="steps">
+          <div class="step"><div class="num">1</div><div class="txt">下载 Skill，信心满满点执行</div></div>
+          <div class="conn"></div>
+          <div class="step fail"><div class="num">!</div><div class="txt"><code>python: command not found</code></div></div>
+          <div class="conn"></div>
+          <div class="step"><div class="num">2</div><div class="txt">开始安装 Python...</div></div>
+          <div class="conn"></div>
+          <div class="step fail"><div class="num">!</div><div class="txt">版本不对，卸载重装</div></div>
+          <div class="conn"></div>
+          <div class="step"><div class="num">3</div><div class="txt">不小心动了其他配置</div></div>
+          <div class="conn"></div>
+          <div class="step"><div class="num">4</div><div class="txt">重新调试，排查半天</div></div>
+        </div>
+        <div class="result">⏱️ 半小时过去了，还没跑起来</div>
+      </div>
+    </div>
+
+    <!-- vs -->
+    <div class="vs"><span>VS</span></div>
+
+    <!-- good -->
+    <div class="col good">
+      <div class="card">
+        <h3>✅ <span class="tag">PVM 方式</span></h3>
+        <div class="sub">项目自带 <code style="background:#f0fdf4;padding:2px 6px;border-radius:3px">.pvmrc</code>，环境自动就位</div>
+        <div class="steps">
+          <div class="step"><div class="num">1</div><div class="txt">下载 Skill</div></div>
+          <div class="conn"></div>
+          <div class="step"><div class="num">2</div><div class="txt">cd 进项目目录</div></div>
+          <div class="conn"></div>
+          <div class="step ok"><div class="num">✓</div><div class="txt">.pvmrc 自动生效，环境秒级就位<small>python → 3.12 / node → 20.11</small></div></div>
+          <div class="conn"></div>
+          <div class="step"><div class="num">3</div><div class="txt">直接跑脚本！</div></div>
+        </div>
+        <div class="result">⏱️ 一分钟搞定</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

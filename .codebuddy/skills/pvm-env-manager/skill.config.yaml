@@ -1,0 +1,59 @@
+# Skill 配置模板（v3）
+# 将此文件复制到 skill-name/skill.config.yaml（每个 skill 一份）
+# 完整契约规范见 references/contract-pattern.md
+
+# ── 触发与优先级 ──
+priority: 85
+auto-trigger: true
+trigger-keywords:
+    - pvm
+    - 安装pvm
+    - install pvm
+    - 环境隔离
+    - 切换版本
+    - pvm use
+    - 需要python环境
+    - 需要node环境
+    - 需要运行时
+    - 卸载nvm
+    - 清理nvm
+    - 迁移到pvm
+    - pvm更新
+    - pvm卸载
+    - 版本管理器
+    - 多语言版本
+
+# ── 依赖关系 ──
+# 🔒 depends-on 必须包含 specflow-rules-engine（规则注入引擎）
+depends-on:
+    - specflow-rules-engine
+mutual-exclude: []
+require-tools: [read_file, execute_command, search_content]
+
+# ── 生命周期 ──
+load-strategy: lazy
+unload-after-run: true
+max-duration: 300
+
+# ── 触发权重 ──
+trigger-weight:
+    安装pvm: 95
+    install pvm: 95
+    pvm use: 90
+    需要python环境: 85
+    需要node环境: 85
+    卸载nvm: 88
+    环境隔离: 80
+    切换版本: 75
+    版本管理器: 60
+    多语言版本: 55
+
+# ── MCP 能力声明（编排器探测用，skill 不直接读取）──
+mcp-capabilities: []
+
+# ── 数据契约（step-contracts）──
+# 本 skill 无 MCP 需求，所有数据通过本地检测命令获取
+step-contracts: []
+
+# ── 记忆钩子（可选）──
+memory-hooks: {}

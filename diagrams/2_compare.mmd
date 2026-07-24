@@ -1,0 +1,19 @@
+flowchart TD
+    subgraph 传统["传统方式"]
+        A1["下载 Skill"] --> A2["python: not found"]
+        A2 --> A3["装 Python"]
+        A3 --> A4["版本不对，重装"]
+        A4 --> A5["动了其他配置"]
+        A5 --> A6["重新调试"]
+        A6 --> A7["终于能跑了<br/>已经过了半小时"]
+    end
+
+    subgraph PVM["PVM 方式"]
+        B1["下载 Skill"] --> B2["cd 进目录"]
+        B2 --> B3[".pvmrc 自动生效<br/>环境秒级就位"]
+        B3 --> B4["直接跑脚本<br/>一分钟完事"]
+    end
+
+    style A2 fill:#ff6b6b,color:#fff
+    style A4 fill:#ff6b6b,color:#fff
+    style B3 fill:#51cf66,color:#fff

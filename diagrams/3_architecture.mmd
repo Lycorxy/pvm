@@ -1,0 +1,51 @@
+flowchart TB
+    subgraph CLI["CLI 层"]
+        CMD["cmd/ 命令层<br/>install / use / list / config / doctor / setup"]
+    end
+
+    subgraph Engine["核心引擎"]
+        SHIM["internal/shim/<br/>硬链接生成 + 自分发"]
+        CONFIG["internal/config/<br/>.pvmrc 解析 + 版本冲突检测"]
+        INSTALL["internal/installer/<br/>下载 → 解压 → flatten → 校验"]
+    end
+
+    subgraph Plugins["插件层"]
+        IFACE["RuntimePlugin 接口"]
+        NODE["node 插件"]
+        PY["python 插件"]
+        GO["go 插件"]
+        RUST["rust 插件"]
+        BUN["bun 插件"]
+        DENO["deno 插件"]
+        GIT["git 插件"]
+        PNPM["pnpm 插件"]
+        YARN["yarn 插件"]
+    end
+
+    subgraph Infra["基础设施"]
+        DL["download/ 下载引擎<br/>进度条 + 重试 + SHA256"]
+        ARCHIVE["archive/ 解压引擎<br/>tar.gz / zip / 7z"]
+        REG["registry/ 镜像源<br/>自动切换国内镜像"]
+        SEMVER["semver/ 版本解析"]
+        LOCK["filelock/ 文件锁<br/>防并发安装"]
+    end
+
+    CMD --> SHIM
+    CMD --> CONFIG
+    CMD --> INSTALL
+    INSTALL --> DL
+    INSTALL --> ARCHIVE
+    CONFIG --> SEMVER
+    INSTALL --> LOCK
+    SHIM --> CONFIG
+    IFACE --> NODE
+    IFACE --> PY
+    IFACE --> GO
+    IFACE --> RUST
+    IFACE --> BUN
+    IFACE --> DENO
+    IFACE --> GIT
+    IFACE --> PNPM
+    IFACE --> YARN
+    INSTALL -.-> IFACE
+    REG -.-> INSTALL
