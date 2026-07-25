@@ -16,6 +16,8 @@ globs: "**/*"
 6. **PATH 冲突必须修复**：检测到系统 PATH 中有冲突路径时，必须提示用户运行 `pvm setup` 修复。
 7. **跨平台命令**：Windows 用 PowerShell 命令，macOS/Linux 用 bash 命令。不混用。
 8. **杀毒软件误报**：Windows 上安装 PVM 时如遇杀软拦截，告知用户这是误报，点击「更多信息」→「仍要运行」。
+9. **脚本执行前确认**：执行卸载脚本前必须确认用户已安装替代品（如卸载 nvm 前先装 PVM + node）。
+10. **备份优先**：替换或删除配置文件前，必须先备份原文件（除非用户明确指定 --no-backup）。
 
 ## 禁止行为
 
@@ -25,6 +27,8 @@ globs: "**/*"
 - ✗ 跳过环境检测步骤直接执行安装
 - ✗ 在 macOS/Linux 上使用 PowerShell 语法
 - ✗ 在 Windows 上使用 bash 语法
+- ✗ 在未告知用户的情况下删除配置文件
+- ✗ 执行卸载脚本时跳过用户确认（除非使用 --yes 参数）
 
 ## PVM 命令速查
 
@@ -43,6 +47,16 @@ globs: "**/*"
 | 卸载运行时 | `pvm remove node@20` |
 | 自卸载 | `pvm uninstall` |
 
+## 实用脚本速查
+
+| 场景 | 脚本 |
+|------|------|
+| 处理 local 文件合并冲突 | `scripts/resolve-local-conflict.bat` / `.sh` |
+| 从远程替换本地 local 文件 | `scripts/replace-local-from-remote.bat` / `.sh` |
+| 彻底卸载软件 | `scripts/uninstall-tool.bat` / `.sh` |
+| PVM 环境诊断 | `scripts/diagnose-pvm-env.bat` / `.sh` |
+| .npmrc 自动配置 | `scripts/setup-npmrc.bat` / `.sh` |
+
 ## 支持的运行时
 
 node / python / rust / go / bun / deno / git / pnpm / yarn
@@ -56,3 +70,42 @@ node / python / rust / go / bun / deno / git / pnpm / yarn
   - 方式 B Releases 下载：从 releases 页面手动下载对应平台二进制
   - 方式 C 源码自建：`git clone` + `go build`（需 Go 1.22+）
 - **铁律：方式 A 失败时必须自动降级到 B 或 C，不得卡死**
+
+## 脚本执行规则
+
+### local 文件冲突处理
+
+- **前提**：当前目录必须是 Git 仓库
+- **检测**：先运行 `git diff --name-only --diff-filter=U` 检查是否有冲突
+- **策略**：默认使用远程版本（`--remote`），除非用户明确要求保留本地
+- **验证**：处理后运行 `git status` 确认冲突已解决
+
+### 从远程替换文件
+
+- **前提**：当前目录必须是 Git 仓库
+- **备份**：默认备份（`--backup`），除非用户指定 `--no-backup`
+- **同步**：替换前先运行 `git fetch origin` 确保远程信息最新
+- **验证**：替换后运行 `git status` 确认文件已更新
+
+### 软件卸载
+
+- **前提**：确认目标软件已安装
+- **替代品检查**：
+  - 卸载 node 前：确认 PVM 已安装其他运行时或用户明确确认
+  - 卸载 nvm 前：确认 PVM 已安装 node
+  - 卸载 pvm 前：用户明确确认
+- **进程终止**：卸载前必须先终止相关进程
+- **环境变量清理**：必须清理用户级和系统级 PATH
+- **注册表清理**：Windows 上必须清理注册表残留
+
+### 环境诊断
+
+- **完整性**：必须检查所有 8 个诊断项
+- **自动修复**：使用 `--fix` 参数时自动修复发现的问题
+- **报告**：诊断完成后生成详细报告，包括通过/失败/警告数量
+
+### .npmrc 配置
+
+- **备份**：覆盖前备份现有配置
+- **内容**：必须包含国内镜像、版本锁定、peer 依赖、lockfile 策略
+- **验证**：配置完成后验证文件格式正确
