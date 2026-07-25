@@ -1,123 +1,98 @@
 @echo off
-REM ============================================================================
-REM PVM 环境管理器 - 从远程替换本地 local 文件脚本 (Windows)
-REM ============================================================================
-REM 功能：从远程仓库强制替换本地 local 文件
-REM 用法：replace-local-from-remote.bat [--backup|--no-backup|--list]
-REM   --backup    : 替换前备份原有文件（默认）
-REM   --no-backup : 不备份直接替换
-REM   --list      : 仅列出 local 文件，不替换
-REM ============================================================================
-
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo   从远程替换本地 local 文件
+echo   Replace Local Files from Remote
 echo ========================================
 echo.
 
-REM 参数解析
+REM Parse arguments
 set MODE=backup
 if "%~1"=="--no-backup" set MODE=no-backup
 if "%~1"=="--backup" set MODE=backup
 if "%~1"=="--list" set MODE=list
 
-REM 检查是否在 git 仓库中
+REM Check if inside a git repo
 git rev-parse --is-inside-work-tree >nul 2>&1
 if errorlevel 1 (
-    echo [错误] 当前目录不是 Git 仓库
+    echo [ERROR] Not a Git repository
     exit /b 1
 )
 
-REM 确保远程信息是最新的
-echo [同步] 正在从远程获取最新信息...
-git fetch origin 2>nul
-if errorlevel 1 (
-    echo [警告] 无法从远程获取信息，将使用本地缓存的远程信息
-)
+REM Fetch latest remote info
+echo [SYNC] Fetching latest...
+git fetch origin >nul 2>&1
+if errorlevel 1 echo [WARN] Unable to fetch, using cached info
 
 echo.
-echo [扫描] 正在查找 local 文件...
+echo [SCAN] Searching for local files...
 echo.
 
-REM 查找所有包含 local 的文件
-set LOCAL_COUNT=0
-set BACKUP_DIR=.local-backup-%date:~0,4%%date:~5,2%%date:~8,2%_%time:~0,2%%time:~3,2%
-set BACKUP_DIR=%BACKUP_DIR: =0%
+REM Build file list
+set "LIST_FILE=%CD%\._pvm_list.tmp"
+git ls-files > "%LIST_FILE%" 2>nul
 
-for /f "tokens=*" %%f in ('git ls-files ^| findstr /i "local"') do (
-    set /a LOCAL_COUNT+=1
-    set "FILE=%%f"
-    echo [!LOCAL_COUNT!] !FILE!
-    
-    if "!MODE!"=="list" (
-        REM 仅列出，不操作
-    ) else (
-        call :replace_file "!FILE!"
+REM Filter and process
+set COUNT=0
+if exist "%LIST_FILE%" (
+    for /f "usebackq tokens=*" %%f in ("%LIST_FILE%") do (
+        set "name=%%f"
+        echo !name! | findstr /i "local" >nul
+        if !errorlevel! equ 0 (
+            set /a COUNT+=1
+            echo [!COUNT!] !name!
+            if not "!MODE!"=="list" call :do_replace "!name!"
+        )
     )
+    del "%LIST_FILE%" >nul 2>&1
 )
 
 echo.
 echo ========================================
-echo   处理结果
+echo   Results
 echo ========================================
-echo 找到 local 文件数: !LOCAL_COUNT!
+echo Local files found: !COUNT!
 
-if "!MODE!"=="list" (
-    echo [完成] 仅列出文件，未执行替换
-) else if !LOCAL_COUNT! gtr 0 (
-    echo [完成] 已从远程替换 !LOCAL_COUNT! 个文件
-    if "!MODE!"=="backup" (
-        echo [备份] 备份文件位于: !BACKUP_DIR!
-    )
-) else (
-    echo [完成] 未找到 local 文件
-)
+if "!MODE!"=="list" goto :show_list
+if !COUNT! gtr 0 goto :show_done
+goto :show_empty
 
+:show_list
+echo [DONE] Listed only
+goto :end
+
+:show_done
+echo [DONE] Replaced !COUNT! file(s)
+goto :end
+
+:show_empty
+echo [DONE] No local files found
+goto :end
+
+:end
 exit /b 0
 
 REM ============================================================================
-REM 替换单个文件
+REM Replace a single file
 REM ============================================================================
-:replace_file
-set "FILE=%~1"
-
-REM 检查文件是否存在
-if not exist "!FILE!" (
-    echo [跳过] !FILE! - 文件不存在
+:do_replace
+set "target=%~1"
+if not exist "!target!" (
+    echo [SKIP] !target! - not found
     exit /b 0
 )
 
-REM 备份原有文件
-if "%MODE%"=="backup" (
-    if not exist "!BACKUP_DIR!" mkdir "!BACKUP_DIR!"
-    
-    REM 保持目录结构
-    set "BACKUP_PATH=!BACKUP_DIR!\!FILE!"
-    for %%d in ("!BACKUP_PATH!") do set "BACKUP_DIR_PATH=%%~pd"
-    if not exist "!BACKUP_DIR_PATH!" mkdir "!BACKUP_DIR_PATH!"
-    
-    copy "!FILE!" "!BACKUP_PATH!" >nul 2>&1
-    if !errorlevel!==0 (
-        echo [备份] !FILE! -^> !BACKUP_PATH!
-    ) else (
-        echo [警告] 备份失败: !FILE!
-    )
+REM Fetch from remote
+git checkout origin/HEAD -- "!target!" >nul 2>&1
+if !errorlevel! equ 0 (
+    echo [REPLACE] !target! - done
+    exit /b 0
 )
-
-REM 从远程获取文件
-git checkout origin/HEAD -- "!FILE!" >nul 2>&1
-if !errorlevel!==0 (
-    echo [替换] !FILE! - 完成
-) else (
-    REM 尝试从当前分支的远程获取
-    for /f "tokens=*" %%b in ('git rev-parse --abbrev-ref HEAD') do set BRANCH=%%b
-    git checkout origin/!BRANCH! -- "!FILE!" >nul 2>&1
-    if !errorlevel!==0 (
-        echo [替换] !FILE! - 完成
-    ) else (
-        echo [失败] !FILE! - 无法从远程获取
-    )
+for /f "usebackq tokens=*" %%b in (`git rev-parse --abbrev-ref HEAD`) do set "br=%%b"
+git checkout origin/!br! -- "!target!" >nul 2>&1
+if !errorlevel! equ 0 (
+    echo [REPLACE] !target! - done
+    exit /b 0
 )
-
+echo [FAIL] !target! - unable to fetch
 exit /b 0

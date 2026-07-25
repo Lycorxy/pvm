@@ -7,6 +7,9 @@ REM 用法：setup-npmrc.bat [--force]
 REM   --force : 强制覆盖现有配置
 REM ============================================================================
 
+REM 设置控制台为 UTF-8 编码，避免中文乱码
+chcp 65001 >nul 2>&1
+
 setlocal enabledelayedexpansion
 
 echo ========================================

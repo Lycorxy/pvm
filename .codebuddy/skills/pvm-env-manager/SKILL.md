@@ -1,351 +1,368 @@
----
-name: pvm-env-manager
-description: >
-  检测、安装、管理 PVM 多语言版本管理器，提供运行时环境隔离。
-  当用户需要安装/卸载/迁移版本管理器、处理local文件冲突、
-  环境诊断、配置npmrc时使用。
-version: 3.0.0
-dependencies: [specflow-rules-engine]
-conflict-with: []
-allowed-tools: [read_file, execute_command, search_content]
-max-token: 3000
----
+# PVM 环境管理器（移动手册）
 
-# PVM 环境管理器
+## 定位
 
-## 概述
+用户说 pvm 相关需求时触发。模型直接执行命令，达成目标，不多解释。
 
-检测、安装、管理 PVM（Polyglot Version Manager）多语言版本管理器，为项目和 AI Skill 提供运行时环境隔离。
+## 执行原则
 
-**使用场景**：
-- 安装/卸载/更新 PVM 或其管理的运行时
-- 需要运行时环境（python、node、go、rust 等）
-- 从 nvm/fnm/pyenv 迁移到 PVM
-- 项目级版本锁定（.pvmrc）
-- 环境问题诊断与修复
-- local 文件冲突处理
+1. **直接执行** — 检测到什么就跑什么命令，不等用户确认细节
+2. **少废话** — 不解释原理，不输出大段说明，只报关键结果
+3. **一步到位** — 能一条命令解决的不拆成两步
+4. **失败降级** — A 方式不行换 B，B 不行换 C，不卡死
+5. **脚本优先** — 冲突清理、卸载等操作有现成脚本，直接调，不手写
 
-**不使用**：Git 版本管理、Docker 环境、系统包管理（apt、brew、choco）、开发 PVM 源码
-
----
-
-## 🛑 入口守卫
+## 内置命令速查（不查文档）
 
 ```
-必须按顺序执行 Step 0→1→2→... 全部步骤。
-每步必须播报完成消息。未播报 = 未执行 = 违规。
+# 安装与切换
+pvm install <runtime>@<version>     # 安装运行时（默认用户级）
+pvm use <runtime>@<version>         # 切换（默认用户级 --user）
+pvm use <runtime>@<version> --local # 锁定到项目（写 .pvmrc）
+pvm use                              # 按 .pvmrc 自动切
+pvm use --system <runtime>          # 使用系统版本
+pvm init                             # 创建 .pvmrc（当前目录）
+pvm init --local                     # 同上（显式项目级）
 
-禁止：✗ 跳过 Step 0 / ✗ 不播报 / ✗ 无声跳过
+# 查询
+pvm list                            # 已装运行时
+pvm list <runtime>                  # 某运行时的已装版本
+pvm list-remote <runtime>           # 远程可用版本
+pvm current                         # 当前激活版本
+pvm which <command>                 # 可执行文件真实路径
+pvm where <runtime>                 # 运行时安装目录
+pvm doctor                          # 环境健康检查（7项）
+pvm validate [--auto-fix]           # 深度验证 shim + 版本一致性
+pvm diagnostics <runtime>           # 单个运行时详细诊断
+pvm --version                       # PVM 版本
 
-例外：同会话已执行步骤可跳过，但必须声明：
-  ⏭️ [跳过] Step N — 原因 | 风险
+# 配置管理（.pvmrc 操作）
+pvm config init                     # 从当前活跃版本创建 .pvmrc
+pvm config show                     # 显示 .pvmrc 内容
+pvm config set <runtime>@<version>  # 设置/更新版本
+pvm config remove <runtime>         # 移除某运行时
+
+# 维护
+pvm setup                           # 首次设置（目录+PATH+shims）
+pvm setup-path                      # 检查/修复 PATH 配置
+pvm reshim                          # 重建 shim
+pvm self-update                     # 更新 PVM
+pvm remove <runtime>@<version>      # 卸载某个已装版本
+pvm uninstall                       # 卸载 PVM 自身
+
+# 全局标志
+--user, -u                          # 用户级操作 [默认]
+--local, -l                         # 项目级操作（写 .pvmrc）
+--system, -s                        # 使用系统安装版本
+--mirror, -m                        # 下载用国内镜像
+--official, -o                      # 下载用官方源
+--force, -f                         # 强制重装
+--verbose, -V                       # 详细输出
+--quiet, -q                         # 静默模式
+
+# 支持的运行时（9种）
+node / python / rust / go / bun / deno / git / pnpm / yarn
+
+# 全局唯一运行时（不支持项目级 .pvmrc）
+go / git / rust（只能 --user 或 --system）
 ```
 
----
-
-## 核心工作流
-
-### Step 0：规则注入（🔒 强制 · 最高优先级）
+## 脚本速查（冲突清理直接调）
 
 ```
-alwaysApply: true → use_skill("specflow-rules-engine")
-  1. 同步 RULE.mdc 到 .codebuddy/rules/pvm-env-manager
-  2. 检测 System Prompt 是否已注入
-  3. 未注入 → read_file 兜底
-```
+脚本目录: .codebuddy/skills/pvm-env-manager/scripts/
 
-```
-✅ [Step 0] 规则注入完成
-  ▸ 注入方式：{specflow-rules-engine / read_file 兜底}
-  ▸ alwaysApply: true
-```
+# 软件卸载（16种：PVM运行时 + 冲突工具）
+Windows: scripts\uninstall-tool.bat <名称> --yes
+Unix:    ./scripts/uninstall-tool.sh <名称> --yes
 
----
+# pnpm .npmrc 配置（锁版本 + 国内镜像）
+Windows: scripts\setup-npmrc.bat --force
+Unix:    ./scripts/setup-npmrc.sh --force
 
-### Step 1：环境检测（🔒 强制）
+# 环境诊断
+Windows: scripts\diagnose-pvm-env.bat --fix
+Unix:    ./scripts/diagnose-pvm-env.sh --fix
 
-检测 PVM 安装状态、操作系统、已安装运行时、冲突工具。
-
-**执行**：
-```bash
-# 检测 OS
-uname -s                    # macOS/Linux
-$env:OS                     # Windows
-
-# 检测 PVM
-command -v pvm && pvm --version   # macOS/Linux
-where.exe pvm; pvm --version       # Windows
-
-# 检测冲突工具
-for tool in nvm fnm pyenv rustup volta asdf; do command -v $tool; done  # macOS/Linux
-foreach ($tool in @('nvm','fnm','pyenv','rustup','volta','asdf')) { Get-Command $tool }  # Windows
-```
-
-```
-✅ [Step 1] 环境检测完成
-  ▸ 操作系统：{OS}
-  ▸ PVM 状态：{已安装 vX.X.X / 未安装}
-  ▸ 已装运行时：{列表 / 无}
-  ▸ 冲突工具：{nvm@路径 / 无}
-```
-
----
-
-### Step 2：安装 PVM（未安装时执行）
-
-**安装策略**（按顺序尝试，成功即停）：
-```
-A. 一键脚本（推荐）
-   Windows: iwr -useb https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.ps1 | iex
-   macOS/Linux: curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.sh | bash
-   ↓ 失败（404）
-
-B. Releases 下载
-   浏览器打开：https://github.com/Lycorxy/pvm/releases
-   ↓ 失败（无 Release）
-
-C. 源码自建（需 Go 1.22+）
-   git clone https://github.com/Lycorxy/pvm.git && cd pvm && go build
-```
-
-**验证**：`pvm --version` + `pvm doctor`
-
-**特殊情况**：
-- pvm.exe 被占用 → 杀进程后复制+重命名替换
-- 杀软误报（Windows）→ 告知误报，指引「仍要运行」
-- 编辑器终端不生效 → 完全重启编辑器
-
-```
-✅ [Step 2] PVM 安装完成
-  ▸ 版本：{vX.X.X}
-  ▸ 安装路径：{~/.pvm}
-  ▸ 安装方式：{A一键 / B Releases / C源码}
+# pnpm EPERM 权限错误修复（esbuild/rollup/swc 进程占用）
+Windows: scripts\fix-pnpm-eperm.bat --reinstall   # 杀进程+删node_modules+重装
+         scripts\fix-pnpm-eperm.bat --kill-only   # 仅杀占用进程
+         scripts\fix-pnpm-eperm.bat --check       # 仅检测
+Unix:    ./scripts/fix-pnpm-eperm.sh --reinstall
 ```
 
 ---
 
-### Step 3：运行时安装与切换（按需执行）
+## 场景执行流
 
-**决策树**：
-- 项目级（有 .pvmrc）→ 读取并安装 + `pvm use --local`
-- 用户级（全局）→ `pvm install <runtime>@<version>` + `pvm use`
-- Skill 请求 → 询问版本偏好，安装 + 切换
-
-**执行**：
-```bash
-pvm install node@20        # 安装
-pvm use node@20 --local    # 项目级
-pvm use node@20            # 用户级
-```
-
-**验证**：`node --version` / `python --version` / `pvm current`
+### 场景 1：安装 PVM
 
 ```
-✅ [Step 3] 运行时就位
-  ▸ {runtime} = {version}（项目级 / 用户级）
+检测 → pvm --version
+  ├─ 有输出 → 已装，跳到目标场景
+  └─ 无输出 → 安装：
+      方式 A: iwr -useb https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.ps1 | iex
+      方式 B: 浏览器开 https://github.com/Lycorxy/pvm/releases
+              下载 pvm-windows-amd64.exe → 放到 %USERPROFILE%\.pvm\bin\pvm.exe
+              运行 pvm setup
+      方式 C: git clone https://github.com/Lycorxy/pvm.git → go build → 放 bin → pvm setup
+
+验证 → pvm doctor
+  ├─ 全绿 → 完成
+  └─ 有红 → pvm setup 修复
+```
+
+**平台对照：**
+
+| 操作 | Windows | macOS/Linux |
+|------|---------|-------------|
+| 探测脚本 | `iwr -Method Head URL` | `curl -fsSLI URL \| head -1` |
+| 一键安装 | `iwr -useb URL \| iex` | `curl -fsSL URL \| bash` |
+| 文件名 | `pvm.exe` | `pvm` |
+| 安装目录 | `%USERPROFILE%\.pvm\bin\` | `~/.pvm/bin/` |
+
+**特殊情况：**
+
+- **pvm.exe 被占用** → 杀进程 + 复制新文件 + 重命名替换
+- **编辑器终端不生效** → 完全重启编辑器（不是 reload）
+- **杀软拦截** → 「仍要运行」或加排除项 `%USERPROFILE%\.pvm`
+
+---
+
+### 场景 2：安装/切换运行时
+
+```
+需求？
+├─ "我需要 python 环境" → pvm install python@latest && pvm use python@latest
+├─ "切到 node 20"       → pvm install node@20 && pvm use node@20
+├─ "这个项目用指定版本" → 见场景 5（.pvmrc）
+└─ 其他 Skill 请求      → 问版本（默认 latest）→ install + use
+
+验证 → node --version / python --version / pvm current
 ```
 
 ---
 
-### Step 4：冲突工具迁移（检测到冲突时执行）
+### 场景 3：pnpm 版本锁定（解决依赖问题）
 
-**铁律**：先装后卸，不装不卸。
-
-**决策树**：
-```
-nvm/fnm → 1. pvm install node@版本
-          2. pvm use node@版本
-          3. 验证 node --version
-          4. 卸载 nvm（脚本或手动）
-          5. pvm setup 修复 PATH
-
-pyenv → 1. pvm install python@版本
-        2. pvm use python@版本
-        3. 卸载 pyenv
-
-rustup → 1. pvm install rust@版本
-         2. pvm use rust@版本
-         3. 卸载 rustup
-```
-
-**nvm 卸载**（Windows）：
-```bash
-node .codebuddy/skills/pvm-env-manager/scripts/uninstall_nvm.js --yes
-```
+**目标：** 项目内 pnpm 版本固定 + lockfile 冻结 + 依赖不漂移。
 
 ```
-✅ [Step 4] 冲突工具迁移完成
-  ▸ 已卸载：{nvm / fnm / pyenv}
-  ▸ PVM 替代：{node@20.x.x 已就位}
+Step 1: pvm 管理 pnpm 版本
+  pvm install pnpm@9
+  pvm use pnpm@9 --local          # 写入 .pvmrc，项目级锁定
+
+Step 2: 配置 .npmrc（锁版本策略）
+  Windows: .codebuddy\skills\pvm-env-manager\scripts\setup-npmrc.bat --force
+  Unix:    ./.codebuddy/skills/pvm-env-manager/scripts/setup-npmrc.sh --force
+
+  → 自动配置：
+    - registry=npmmirror（国内镜像）
+    - save-prefix=""（精确版本，不加 ^ ~）
+    - prefer-frozen-lockfile=true（优先用现有 lockfile）
+    - auto-install-peers=true（自动装 peer 依赖）
+
+Step 3: 验证
+  pnpm --version                   # 应为 .pvmrc 指定版本
+  cat .pvmrc                       # 应有 pnpm = 9
+  cat ~/.npmrc                     # 应有锁版本配置
+
+Step 4: 提交到仓库
+  git add .pvmrc .npmrc
+  git commit -m "lock pnpm version and deps"
 ```
 
----
+**.pvmrc 最终效果：**
 
-### Step 5：项目环境隔离（按需执行）
-
-创建或更新 .pvmrc，实现项目间版本隔离。
-
-**执行**：
-```bash
-cat .pvmrc                    # 查看现有配置
-pvm use node@20 --local      # 写入 .pvmrc
-pvm use python@3.12 --local
-git add .pvmrc                # 提交到仓库
+```ini
+node = 20.11.0
+pnpm = 9
 ```
 
-**验证**：`cd /other/project && node --version`（切换目录自动生效）
-
-```
-✅ [Step 5] 项目环境隔离已配置
-  ▸ .pvmrc：{node=20.11.0, python=3.12.0}
-  ▸ 进目录自动生效
-```
-
----
-
-### Step 6：更新与卸载（按需执行）
+**CI 环境额外加：**
 
 ```bash
-pvm self-update              # 更新 PVM
-pvm uninstall --yes          # 卸载 PVM
-pvm remove node@18           # 卸载运行时
+pnpm install --frozen-lockfile   # CI 严格按 lockfile，不更新
 ```
 
+**pnpm 安装报错（权限问题）—— 最常见：**
+
+`pvm install pnpm` 报 `ERR_PNPM_EPERM` / `EPERM: operation not permitted` / `EACCES`，**根因是 IDE 没有管理员权限**，pvm 写入 shim/全局目录被系统拒绝。
+
+**解决（一步到位）：** 用管理员权限重新打开 IDE：
+
 ```
-✅ [Step 6] {更新/卸载} 完成
-  ▸ 操作：{self-update / uninstall / remove}
-  ▸ 结果：{已更新到 vX.X.X / 已完全卸载}
+右键 IDE 图标 → 以管理员身份运行 → pvm install pnpm@9 && pvm use pnpm@9
+```
+
+> 这是 PVM 安装 pnpm 的典型问题，管理员权限即可解决，无需其他操作。
+
+---
+
+### 场景 3B：pnpm install EPERM 权限错误修复（补充方案）
+
+**触发：** 已有管理员权限，但 `pnpm install` 仍报 `ERR_PNPM_EPERM` / `EPERM: operation not permitted, unlink '...esbuild.exe'`
+
+**原因：** esbuild.exe / rollup.exe / swc.exe 等原生二进制文件被进程占用（开发服务器 vite/webpack 在运行、IDE 索引服务、杀毒软件扫描），pnpm 无法删除/替换。
+
+**首选排查（先试这步）：**
+
+```
+1. 确认已用管理员权限运行 IDE（见场景 3 权限问题）
+2. 如仍报错 → 进程占用，用下方脚本处理
+```
+
+**自动处理流程（进程占用场景）：**
+
+```
+1. 扫描占用进程（esbuild.exe, rollup.exe, swc.exe, vite.exe, webpack.exe）
+2. taskkill /F 终止这些进程
+3. 删除 node_modules（含强制删除只读文件）
+4. pnpm install 重新安装
+```
+
+**调用方式：**
+
+```
+# 完整修复（杀进程 + 删 node_modules + 重装）— 默认
+Windows: .codebuddy\skills\pvm-env-manager\scripts\fix-pnpm-eperm.bat --reinstall
+Unix:    ./.codebuddy/skills/pvm-env-manager/scripts/fix-pnpm-eperm.sh --reinstall
+
+# 仅杀占用进程（不想删 node_modules 时用）
+Windows: scripts\fix-pnpm-eperm.bat --kill-only
+
+# 仅检测占用进程（不操作）
+Windows: scripts\fix-pnpm-eperm.bat --check
+```
+
+**手动处理（脚本无效时）：**
+
+```
+1. 关闭开发服务器（Ctrl+C 停止 vite dev / npm run dev）
+2. 完全关闭 IDE（不是 reload，是退出）
+3. 终端手动执行：
+   taskkill /F /IM esbuild.exe
+   rmdir /s /q node_modules
+   pnpm install
+4. 如仍失败 → 杀毒软件添加项目目录到排除项
+5. 如仍失败 → 以管理员身份运行终端重试
+```
+
+**注意：** 脚本只杀 esbuild/rollup/swc/vite/webpack 进程，**不杀 node.exe**（避免误杀 IDE）。如开发服务器是 node 进程（如 `vite` 通过 node 启动），需手动关闭。
+
+---
+
+### 场景 4：冲突工具清理
+
+**铁律：先装后卸。卸 nvm 前先 `pvm install node`，卸 pyenv 前先 `pvm install python`。**
+
+```
+检测冲突 → pvm doctor（或手动 where.exe nvm / which nvm）
+  ├─ 无冲突 → 跳过
+  └─ 有冲突 →
+      1. 先装替代品：
+         nvm  → pvm install node@<当前版本> && pvm use node@<版本>
+         pyenv → pvm install python@<版本> && pvm use python@<版本>
+      2. 验证替代品：node --version / python --version
+      3. 跑卸载脚本（直接调，不解释）：
+         Windows: scripts\uninstall-tool.bat nvm --yes
+         Unix:    ./scripts/uninstall-tool.sh nvm --yes
+      4. 修复 PATH：pvm setup
+      5. 验证：pvm doctor
+```
+
+**支持的卸载目标（18种）：**
+
+- PVM运行时：`node` `git` `python` `rust` `go` `bun` `deno` `pnpm` `yarn` `pvm`
+- 冲突工具：`nvm` `volta` `fnm` `nodenv` `pyenv` `rustup` `asdf` `conda`
+
+---
+
+### 场景 4B：lock 文件合并冲突
+
+**触发：** `pnpm-lock.yaml` / `package-lock.json` / `yarn.lock` 在 git merge/rebase 时出现冲突标记（`<<<<<<<` / `>>>>>>>`）。
+
+**为什么不能手动合并：** lock 文件是包管理器根据 package.json 自动生成的，包含了依赖树、完整性校验 hash、peer dependency 解析结果等。手动编辑极易导致：
+- 依赖版本错乱
+- 完整性校验失败
+- pnpm install 后 lockfile 再次漂移
+
+**自动处理流程：**
+
+```
+1. 脚本扫描所有冲突文件，识别出 lock 文件
+2. git checkout --theirs   （用远程版本清除冲突标记）
+3. pnpm install --lockfile-only   （基于本地 package.json 重新生成）
+4. git add pnpm-lock.yaml   （暂存正确版本）
+
+调用方式：
+  Windows: .codebuddy\skills\pvm-env-manager\scripts\resolve-lockfile-conflict.bat
+  Unix:    ./.codebuddy/skills/pvm-env-manager/scripts/resolve-lockfile-conflict.sh
+
+选项：
+  --regenerate（默认）：清除冲突 + pnpm install 重新生成 + git add
+  --no-regenerate     ：仅清除冲突标记，不重新生成
 ```
 
 ---
 
-### Step 7：实用工具脚本（按需执行）
+### 场景 5：项目环境隔离
 
-使用跨平台脚本解决常见环境问题。
-
-**脚本执行路径**：`.codebuddy/skills/pvm-env-manager/scripts/`
-
-#### 7.1 local 文件合并冲突处理
-
-**场景**：用户说"local文件冲突"、"合并冲突"
-
-**执行**：
-```bash
-# Windows
-.\.codebuddy\skills\pvm-env-manager\scripts\resolve-local-conflict.bat --remote
-
-# macOS/Linux
-./.codebuddy/skills/pvm-env-manager/scripts/resolve-local-conflict.sh --remote
+```
+1. 进项目目录
+2. pvm use node@20 --local        # 自动写 .pvmrc
+   pvm use python@3.12 --local
+   pvm use pnpm@9 --local
+3. 验证 → cat .pvmrc
+4. 提交 → git add .pvmrc && git commit -m "lock runtimes"
 ```
 
-**参数**：`--local`（保留本地）/ `--remote`（使用远程，默认）/ `--auto`
+**.pvmrc 格式：**
 
-#### 7.2 从远程替换 local 文件
-
-**场景**：用户说"从远程替换"、"替换local文件"
-
-**执行**：
-```bash
-# Windows
-.\.codebuddy\skills\pvm-env-manager\scripts\replace-local-from-remote.bat --backup
-
-# macOS/Linux
-./.codebuddy/skills/pvm-env-manager/scripts/replace-local-from-remote.sh --backup
+```ini
+node = 20.11.0
+python = 3.12.0
+pnpm = 9
 ```
 
-**参数**：`--backup`（备份，默认）/ `--no-backup`（不备份）/ `--list`（仅列出）
+进目录自动生效，切到别的项目自动换。不用记，不用手动 `use`。
 
-#### 7.3 软件彻底卸载
+---
 
-**场景**：用户说"彻底卸载"、"卸载node/git/nvm"等
+### 场景 6：更新与卸载
 
-**执行**：
-```bash
-# Windows
-.\.codebuddy\skills\pvm-env-manager\scripts\uninstall-tool.bat <软件名> --yes
-
-# macOS/Linux
-./.codebuddy/skills/pvm-env-manager/scripts/uninstall-tool.sh <软件名> --yes
 ```
-
-**支持**：node / git / nvm / pvm / python / yarn / pnpm
-
-#### 7.4 PVM 环境诊断
-
-**场景**：用户说"环境诊断"、"诊断pvm"、"端口冲突"
-
-**执行**：
-```bash
-# Windows
-.\.codebuddy\skills\pvm-env-manager\scripts\diagnose-pvm-env.bat --fix
-
-# macOS/Linux
-./.codebuddy/skills/pvm-env-manager/scripts/diagnose-pvm-env.sh --fix
-```
-
-**参数**：`--fix`（自动修复）
-
-#### 7.5 .npmrc 自动配置
-
-**场景**：用户说"配置npmrc"、"npmrc配置"
-
-**执行**：
-```bash
-# Windows
-.\.codebuddy\skills\pvm-env-manager\scripts\setup-npmrc.bat --force
-
-# macOS/Linux
-./.codebuddy/skills/pvm-env-manager/scripts/setup-npmrc.sh --force
-```
-
-**参数**：`--force`（强制覆盖）
-
-**播报完成消息**：
-```
-✅ [Step 7] {脚本功能} 完成
-  ▸ 脚本：{脚本名称}
-  ▸ 参数：{使用的参数}
+更新 PVM → pvm self-update
+卸载运行时 → pvm remove node@18
+卸载 PVM → pvm uninstall
+彻底清理 → scripts\uninstall-tool.bat pvm --yes
 ```
 
 ---
 
-## 中断与恢复
+## 错误速查
 
-```
-⏯️ [恢复] 上次进度：X/7 步完成
-已完成：✅ Step 0 — 规则注入
-待完成：⬜ Step 1 — 环境检测
-断点：从 Step 1 继续
-```
-
----
-
-## 错误处理
-
-| 错误场景 | 恢复操作 |
-|---------|---------|
-| 安装脚本 404 | 跳转到方式 B（Releases）或方式 C（源码） |
-| Releases 无版本 | 等待作者发布或源码自建 |
-| PVM 命令找不到 | 重启终端/编辑器，检查 PATH |
-| `pvm use` 无效 | 运行 `pvm doctor` + `pvm setup` |
-| 杀软拦截 | 告知误报，指引「仍要运行」 |
+| 现象 | 动作 |
+|------|------|
+| `pvm: command not found` | 重启终端 / 重启编辑器 / `pvm setup` |
+| 安装脚本 404 | 换 Releases 下载（方式 B）或源码编译（方式 C） |
+| `pvm use` 无效 | `pvm doctor` → `pvm setup` 修复 PATH |
+| pvm.exe 被占用 | 杀进程 + 复制重命名替换 |
+| 杀软拦截 | 「仍要运行」或加排除项 |
+| 下载慢 | PVM 自动切国内镜像，无需配置 |
+| 版本不存在 | `pvm list <runtime>` 看可用版本 |
+| `ERR_PNPM_EPERM` / `EPERM` / `EACCES`（pvm install pnpm） | **管理员权限运行 IDE**（场景 3 权限问题，最常见） |
+| `ERR_PNPM_EPERM` unlink（pnpm install，已有管理员权限） | 场景 3B：`fix-pnpm-eperm.bat --reinstall`（进程占用） |
 
 ---
 
-## 验证清单
+## 脚本职责（AI 只需知道何时调，不需解释内部逻辑）
 
-- [ ] PVM 已正确安装（`pvm --version`）
-- [ ] PATH 中 `~/.pvm/shims` 排在最前
-- [ ] 目标运行时已安装（`pvm list`）
-- [ ] 版本切换生效（`node --version`）
-- [ ] .pvmrc 已提交（项目级隔离）
-- [ ] 冲突工具已清理
-
----
-
-## 参考资料
-
-- [PVM 命令参考](references/pvm-commands.md)
-- [安装指南](references/install-guide.md)
-- [迁移指南](references/migration-guide.md)
-- [实用脚本详解](scripts/README.md)
+| 脚本 | 何时调 | 干什么 |
+|------|--------|--------|
+| `uninstall-tool.bat/.sh` | 冲突工具清理 / 彻底卸载 | 16种软件：杀进程→清PATH→删目录→清注册表 |
+| `setup-npmrc.bat/.sh` | pnpm 版本锁定场景 | 配置 .npmrc 锁版本策略 |
+| `diagnose-pvm-env.bat/.sh` | 环境异常排查 | 8 项诊断 + 可选自动修复 |
+| `resolve-lockfile-conflict.bat/.sh` | lock 文件合并冲突 | 清除冲突标记 → pnpm install 重新生成 → git add |
+| `replace-local-from-remote.bat/.sh` | local 配置文件同步远程 | 从远程拉取替换本地 |
+| `fix-pnpm-eperm.bat/.sh` | pnpm install EPERM 权限错误 | 杀占用进程 → 删 node_modules → pnpm install |

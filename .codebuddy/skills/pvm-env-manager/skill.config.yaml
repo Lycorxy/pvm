@@ -22,17 +22,41 @@ trigger-keywords:
     - pvm卸载
     - 版本管理器
     - 多语言版本
-    - local文件冲突
+    - pnpm版本
+    - 锁定pnpm
+    - pnpm依赖冲突
+    - lockfile
+    - lock文件冲突
+    - lockfile冲突
+    - 锁文件冲突
+    - 锁死版本
+    - 锁版本
+    - version lock
     - 合并冲突
     - 冲突处理
     - 从远程替换
     - 彻底卸载
     - 卸载软件
+    - 清理依赖
+    - 重置依赖
     - 环境诊断
     - 诊断环境
     - 端口冲突
     - npmrc配置
     - 配置npmrc
+    - EPERM
+    - ERR_PNPM_EPERM
+    - EACCES
+    - pnpm权限
+    - pnpm报错
+    - pnpm安装失败
+    - esbuild占用
+    - 文件被占用
+    - operation not permitted
+    - unlink
+    - 管理员权限
+    - 权限不足
+    - 权限错误
 
 # ── 依赖关系 ──
 # 🔒 depends-on 必须包含 specflow-rules-engine（规则注入引擎）
@@ -54,21 +78,43 @@ trigger-weight:
     需要python环境: 85
     需要node环境: 85
     卸载nvm: 88
+    锁定pnpm: 82
+    pnpm依赖冲突: 80
     环境隔离: 80
     切换版本: 75
     版本管理器: 60
     多语言版本: 55
-    local文件冲突: 90
+    lock文件冲突: 90
+    lockfile冲突: 90
+    锁文件冲突: 90
+    锁死版本: 88
+    锁版本: 88
+    version lock: 88
     合并冲突: 85
     冲突处理: 85
     从远程替换: 85
     彻底卸载: 88
     卸载软件: 88
+    清理依赖: 80
+    重置依赖: 80
     环境诊断: 85
     诊断环境: 85
     端口冲突: 80
     npmrc配置: 80
     配置npmrc: 80
+    EPERM: 92
+    ERR_PNPM_EPERM: 95
+    EACCES: 90
+    pnpm权限: 90
+    pnpm报错: 85
+    pnpm安装失败: 88
+    esbuild占用: 85
+    文件被占用: 75
+    operation not permitted: 92
+    unlink: 88
+    管理员权限: 80
+    权限不足: 85
+    权限错误: 85
 
 # ── MCP 能力声明（编排器探测用，skill 不直接读取）──
 mcp-capabilities: []

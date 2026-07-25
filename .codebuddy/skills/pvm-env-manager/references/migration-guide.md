@@ -37,8 +37,8 @@ pvm use node@20
 # 5. 验证
 node --version
 
-# 6. 卸载 nvm（通过 PVM 的 Node.js 脚本）
-node ~/.codebuddy/skills/pvm-env-manager/scripts/uninstall_nvm.js --yes
+# 6. 卸载 nvm（通过统一卸载脚本）
+scripts\uninstall-tool.bat nvm --yes
 
 # 7. 修复 PATH
 pvm setup
