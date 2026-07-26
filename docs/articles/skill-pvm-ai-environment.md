@@ -194,14 +194,25 @@ Skill + PVM 这套组合，本质上是把"人查文档、人敲命令、人排�
 
    > 💡 **提示**：国内用户推荐从 Gitee 镜像下载，速度更快。国际用户可直接从 GitHub 下载。
 
-2. **体验 Skill**：在 Trae IDE 中，直接对话即可
+2. **获取 Skill**：Skill 已内置在 PVM 项目中
+
+   ```bash
+   # Clone PVM 仓库（包含 Skill）
+   git clone https://github.com/Lycorxy/pvm.git
+   # 或从 Gitee 克隆（国内更快）
+   git clone https://gitee.com/lycorxy/pvm.git
+   ```
+
+   Skill 位于 `.codebuddy/skills/pvm-env-manager` 目录，支持 CodeBuddy Skill 的 IDE 会自动加载。
+
+3. **体验 Skill**：在 Trae IDE 中打开项目，直接对话即可
    ```
    "帮我装 Node 20"
    "项目锁定 Python 3.12"
    "清理 nvm，换成 pvm 管理"
    ```
 
-   > 遇到问题？👉 [GitHub Issues](https://github.com/Lycorxy/pvm/issues)
+   > 遇到问题？👉 [GitHub Issues](https://github.com/Lycorxy/pvm/issues) | [Gitee Issues](https://gitee.com/lycorxy/pvm/issues)
 
 ---
 
