@@ -1,6 +1,17 @@
 # Skill + PVM 绝了，AI 直接帮你搞定环境问题了
 
-> 九个运行时，一个命令搞定。冲突清理、权限修复、依赖锁定，AI 全包了。
+> **你是否遇到过这些场景：**
+>
+> - **后端开发者**：克隆前端项目，`npm install` 报错 —— "Node 版本不对，你本地装个 18"
+> - **AI 模型部署**：跑了好久，Token 都烧了好几万，Python 还没装上
+> - **包管理器打架**：你用 pnpm，他用 yarn，lockfile 冲突改半天
+> - **开发迭代翻车**：环境问题导致新任务跑不起来，查半天才发现是依赖版本漂移
+>
+> **我们真的有必要把 Token 和精力浪费在重试上吗？每次都要和环境较真吗？**
+>
+> ⭐ [如果这篇文章帮到你了，给个 Star 吧](https://github.com/Lycorxy/pvm) | 💬 [评论区说说你的环境痛点](#评论区)
+>
+> 接下来，我会用 6 个真实场景，告诉你：**AI 怎么帮你从环境地狱里爬出来。**
 
 ---
 
@@ -22,15 +33,15 @@ AI 直接执行，30 秒搞定。
 
 **PVM（Polyglot Version Manager）**—— 一个统一管理 9 种运行时的版本管理器：
 
-| 运行时 | 支持情况 |
-|--------|----------|
-| Node.js | ✅ 安装 / 切换 / 项目级锁定 |
-| Python | ✅ 安装 / 切换 / 项目级锁定 |
-| Go | ✅ 安装 / 切换 |
-| Rust | ✅ 安装 / 切换 |
-| Bun / Deno | ✅ 安装 / 切换 / 项目级锁定 |
-| pnpm / Yarn | ✅ 安装 / 切换 / 项目级锁定 |
-| Git | ✅ 安装 / 切换 |
+| 运行时 | 安装 | 用户级切换 | 项目级锁定 | 国内镜像 |
+|--------|:---:|:---:|:---:|:---:|
+| Node.js | ✅ | ✅ | ✅ .pvmrc | npmmirror |
+| Python | ✅ | ✅ | ✅ .pvmrc | npmmirror |
+| Bun / Deno | ✅ | ✅ | ✅ .pvmrc | npmmirror |
+| pnpm / Yarn | ✅ | ✅ | ✅ .pvmrc | npmmirror |
+| Go | ✅ | ✅ | — 仅用户级 | golang.google.cn |
+| Rust | ✅ | ✅ | — 仅用户级 | rsproxy.cn |
+| Git | ✅ | ✅ | — 仅用户级 | npmmirror |
 
 **CodeBuddy Skill**—— 一个让 AI 能直接执行 PVM 命令的扩展包。它不是给你文档让你自己看，而是 **AI 直接帮你跑命令**。
 
@@ -43,16 +54,13 @@ AI 直接执行，30 秒搞定。
 ```
 用户：帮我配好 Node 20、Python 3.12、pnpm 9
 AI：  pvm install node@20 --mirror
-      pvm use node@20
-      ✓ Node.js 20.18.0 安装完成
+      ✓ Node.js 20.18.0 安装完成，已设为默认
 
       pvm install python@3.12 --mirror
-      pvm use python@3.12
-      ✓ Python 3.12.4 安装完成
+      ✓ Python 3.12.4 安装完成，已设为默认
 
       pvm install pnpm@9 --mirror
-      pvm use pnpm@9
-      ✓ pnpm 9.15.0 安装完成
+      ✓ pnpm 9.15.0 安装完成，已设为默认
 ```
 
 以前：查三个工具的安装命令 → 各下载安装 → 配环境变量 → 验证。现在：**一句话，30 秒。**
@@ -66,7 +74,7 @@ AI：  pvm install node@20 --mirror
 AI：  [检测冲突] 发现 nvm，Node 当前版本 18.17.0
       1. pvm install node@18
       2. node --version → ✓ 18.17.0
-      3. uninstall-tool.bat nvm --yes
+      3. 执行 Skill 脚本：uninstall-tool nvm --yes
          → 杀进程 → 清 PATH → 删目录 → 清注册表
       4. pvm doctor → ✓ 全绿
 
@@ -79,26 +87,12 @@ AI：  [检测冲突] 发现 nvm，Node 当前版本 18.17.0
 
 ---
 
-### 场景三：pnpm EPERM 权限错误，自动修复
-
-```
-用户：pnpm install 报 EPERM，esbuild.exe 删不掉
-AI：  [检测] 发现 2 个 esbuild.exe 进程 (PID: 30392, 59340)
-      fix-pnpm-eperm.bat --reinstall
-      → 杀进程 → 删 node_modules → pnpm install
-      ✓ 依赖重装完成，EPERM 解决
-```
-
-以前：Google 搜报错 → 找到 taskkill 命令 → 手动执行 → 手动删 node_modules → 重装。现在：**AI 自己检测、自己修。**
-
----
-
-### 场景四：lock 文件合并冲突，AI 帮解
+### 场景三：lock 文件合并冲突，AI 帮解
 
 ```
 用户：git merge 后 pnpm-lock.yaml 冲突了
 AI：  [扫描] 发现 pnpm-lock.yaml 冲突
-      resolve-lockfile-conflict.bat
+      执行 Skill 脚本：resolve-lockfile-conflict
       → git checkout --theirs (清除冲突标记)
       → pnpm install --lockfile-only (重新生成)
       → git add pnpm-lock.yaml
@@ -109,16 +103,37 @@ lock 文件手动合并 = 灾难。但 AI **不手动合并**，而是让包管�
 
 ---
 
-### 场景五：项目环境隔离，进目录自动切
+### 场景四：项目环境隔离，进目录自动切
 
 ```
 用户：这个项目锁定 Node 20 + pnpm 9
-AI：  pvm use node@20 --local
-      pvm use pnpm@9 --local
-      ✓ .pvmrc 已写入
+AI：  pvm install node@20 --local
+      pvm install pnpm@9 --local
+      ✓ .pvmrc 已写入，版本已安装
 ```
 
 效果：你 `cd` 进项目目录，Node 自动切到 20；`cd` 到另一个需要 Node 18 的项目，自动切到 18。**零思考，零手动。**
+
+---
+
+### 场景五：项目环境配置，一行命令
+
+```
+用户：这个项目需要配置开发环境
+AI：  [1] pvm install node@20 --local
+      [2] pvm install pnpm@9 --local
+      [3] 执行 Skill 脚本：setup-npmrc
+          → 配置国内镜像
+          → 启用镜像加速
+      ✓ .pvmrc 和 .npmrc 已配置完成
+```
+
+效果：
+- `.pvmrc`：锁定 Node 和 pnpm 版本，团队成员进入目录自动切换
+- `.npmrc`：配置镜像源，安装依赖速度提升 5-10 倍
+- 提交到 git 后，团队 clone 项目就能开箱即用
+
+> 💡 **想深入了解依赖安全？** 查看 [锁版本、冻依赖、防漂移 —— pnpm 依赖管理安全三部曲](./npm-dependency-security.md)
 
 ---
 
@@ -127,35 +142,31 @@ AI：  pvm use node@20 --local
 ```
 用户：pvm 好像有问题
 AI：  pvm doctor
-      ✓ PVM 安装状态    [OK]
-      ✓ 环境变量 PATH    [OK]
-      ✓ 冲突工具检测     [OK]
-      ✓ 目录结构         [OK]
-      ✓ 运行时状态       [OK]
-      ✓ .npmrc 配置      [OK]
-      ✓ Shell 配置       [OK]
+      ✓ PVM_HOME 目录       [OK]
+      ✓ shims 目录          [OK]
+      ✓ shims 在 PATH 中    [OK]
+      ✓ pvm 二进制位置      [OK]
+      ✓ PVM_HOME 可写权限   [OK]
+      ✓ 无旧版 .ps1 shim    [OK]
+      ✓ 无冲突版本管理器    [OK]
 ```
 
-8 项检查，30 秒出结果。有问题的自动标红，告诉你修什么。
+7 项核心检查，30 秒出结果。有问题的自动标红，告诉你修什么。
 
 ---
 
 ## PVM Skill 能力全图
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    PVM Skill                        │
-├───────────────┬─────────────┬───────────────────────┤
-│  运行时管理    │  依赖安全    │  环境修复              │
-├───────────────┼─────────────┼───────────────────────┤
-│ 安装/切换/卸载 │ 版本锁定     │ 冲突工具清理          │
-│ 项目隔离       │ lockfile 修复│ EPERM 权限修复        │
-│ 多版本并存     │ .npmrc 配置  │ 环境诊断              │
-│ 国内镜像加速   │ 依赖不漂移   │ PATH 修复             │
-├───────────────┴─────────────┴───────────────────────┤
-│  支持 9 种运行时 + 18 种工具卸载 + 6 个自动化脚本     │
-└─────────────────────────────────────────────────────┘
-```
+| 能力维度 | 运行时管理 | 依赖安全 | 环境修复 |
+|---------|-----------|---------|---------|
+| **核心功能** | 安装/切换/卸载 | 版本锁定 | 冲突工具清理 |
+| | 项目隔离 | lockfile 修复 | 环境诊断 |
+| | 多版本并存 | .npmrc 配置 | PATH 修复 |
+| | 国内镜像加速 | 依赖不漂移 | |
+| **支持范围** | 9 种运行时 | 项目级锁定 | 7 个自动化脚本 |
+| | Node/Python/Go/Rust/Bun/Deno/Git/pnpm/Yarn | .pvmrc 文件 | 18 种工具卸载 |
+
+**一句话总结**：支持 9 种运行时 + 18 种工具卸载 + 7 个自动化脚本
 
 ---
 
@@ -164,3 +175,37 @@ AI：  pvm doctor
 Skill + PVM 这套组合，本质上是把"人查文档、人敲命令、人排查问题"变成了"人说需求、AI 直接干"。
 
 **你只管写代码，环境问题 AI 来。**
+
+---
+
+## 怎么用？
+
+1. **安装 PVM**：一行命令搞定
+   ```bash
+   # Windows（默认从 Gitee 镜像下载，国内更快）
+   iwr -useb https://gitee.com/lycorxy/pvm/raw/master/scripts/install.ps1 | iex
+
+   # macOS/Linux（默认从 Gitee 镜像下载）
+   curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh | bash
+
+   # 国际用户（从 GitHub 下载）
+   # iwr -useb https://github.com/Lycorxy/pvm/raw/master/scripts/install.ps1 | iex
+   ```
+
+   > 💡 **提示**：国内用户推荐从 Gitee 镜像下载，速度更快。国际用户可直接从 GitHub 下载。
+
+2. **体验 Skill**：在 Trae IDE 中，直接对话即可
+   ```
+   "帮我装 Node 20"
+   "项目锁定 Python 3.12"
+   "清理 nvm，换成 pvm 管理"
+   ```
+
+   > 遇到问题？👉 [GitHub Issues](https://github.com/Lycorxy/pvm/issues)
+
+---
+
+**如果这篇文章对你有帮助，别忘了：**
+- ⭐ [给 GitHub 仓库点个 Star](https://github.com/Lycorxy/pvm)
+- 💬 在评论区说说你的环境配置痛点
+- � 转发给还在为环境折腾的朋友

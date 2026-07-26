@@ -299,6 +299,9 @@ const Hero = function () {
             <a href={`${base}guide/quick-start`} className={styles.btnPrimary}>
               快速开始 <IconArrow />
             </a>
+            <a href="https://github.com/Lycorxy/pvm" className={styles.btnStar} target="_blank" rel="noopener">
+              ⭐ GitHub Star
+            </a>
             <a href={`${base}commands/install`} className={styles.btnLink}>
               命令参考
             </a>
