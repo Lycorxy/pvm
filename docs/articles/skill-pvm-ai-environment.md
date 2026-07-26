@@ -194,7 +194,21 @@ Skill + PVM 这套组合，本质上是把"人查文档、人敲命令、人排�
 
    > 💡 **提示**：国内用户推荐从 Gitee 镜像下载，速度更快。国际用户可直接从 GitHub 下载。
 
-2. **获取 Skill**：Skill 已内置在 PVM 项目中
+2. **获取 Skill**：两种方式任选
+
+   **方式一：直接下载（推荐）**
+
+   ```bash
+   # 从 GitHub Release 下载
+   # https://github.com/Lycorxy/pvm/releases/download/v0.0.1/pvm-env-manager.zip
+
+   # 或从 Gitee Release 下载（国内更快）
+   # https://gitee.com/lycorxy/pvm/releases/download/v0.0.1/pvm-env-manager.zip
+   ```
+
+   下载后解压到项目的 `.codebuddy/skills/` 目录即可。
+
+   **方式二：Clone 仓库**
 
    ```bash
    # Clone PVM 仓库（包含 Skill）
