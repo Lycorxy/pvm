@@ -198,13 +198,8 @@ Skill + PVM 这套组合，本质上是把"人查文档、人敲命令、人排�
 
    **方式一：直接下载（推荐）**
 
-   ```bash
-   # 从 GitHub Release 下载
-   # https://github.com/Lycorxy/pvm/releases/download/v0.0.1/pvm-env-manager.zip
-
-   # 或从 Gitee Release 下载（国内更快）
-   # https://gitee.com/lycorxy/pvm/releases/download/v0.0.1/pvm-env-manager.zip
-   ```
+   - [从 GitHub Release 下载](https://github.com/Lycorxy/pvm/releases/download/v0.0.1/pvm-env-manager.zip)
+   - [从 Gitee Release 下载（国内更快）](https://gitee.com/lycorxy/pvm/releases/download/v0.0.1/pvm-env-manager.zip)
 
    下载后解压到项目的 `.codebuddy/skills/` 目录即可。
 
