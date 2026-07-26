@@ -18,12 +18,18 @@
 
 ### 方式 A：PowerShell 一键安装
 
-```powershell
-# 先探测是否可用
-try { Invoke-RestMethod -Uri "https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.ps1" -Method Head | Out-Null; Write-Host "OK" } catch { Write-Host "404: script not found" }
+**国内用户（推荐，从 Gitee 下载）：**
 
-# 可用则执行
-iwr -useb https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.ps1 | iex
+```powershell
+# 执行安装脚本
+iwr -useb https://gitee.com/lycorxy/pvm/raw/master/scripts/install.ps1 | iex
+```
+
+**国际用户（从 GitHub 下载）：**
+
+```powershell
+# 执行安装脚本
+iwr -useb https://github.com/Lycorxy/pvm/raw/master/scripts/install.ps1 | iex
 ```
 
 安装脚本会自动：
@@ -38,6 +44,18 @@ iwr -useb https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.ps1
 
 ### 方式 B：Releases 手动下载
 
+**国内用户（Gitee）：**
+
+1. 浏览器打开 https://gitee.com/lycorxy/pvm/releases
+2. 选择对应文件：
+
+| 系统 | 文件 |
+|------|------|
+| Windows x64 | `pvm-windows-amd64.exe` 或 `.msi` |
+| Windows ARM | `pvm-windows-arm64.exe` 或 `.msi` |
+
+**国际用户（GitHub）：**
+
 1. 浏览器打开 https://github.com/Lycorxy/pvm/releases
 2. 选择对应文件：
 
@@ -45,6 +63,8 @@ iwr -useb https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.ps1
 |------|------|
 | Windows x64 | `pvm-windows-amd64.exe` 或 `.msi` |
 | Windows ARM | `pvm-windows-arm64.exe` 或 `.msi` |
+
+**安装步骤：**
 
 3. 创建目录并放置文件：
    ```powershell
@@ -55,7 +75,7 @@ iwr -useb https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.ps1
 
 4. 初始化：
    ```powershell
-   & "$env:USERPROFILE\.pvm\bin\pvm.exe" setup
+   & "$env:USERPROFILE\.pvm\bin\pvm.exe" setup"
    ```
 
 ### 方式 C：源码自建
@@ -118,12 +138,16 @@ PVM 的 shim 是 pvm.exe 的硬链接，杀软可能误报。
 
 ### 方式 A：一键安装
 
-```bash
-# 先探测
-curl -fsSLI "https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.sh" | head -1
+**国内用户（推荐，从 Gitee 下载）：**
 
-# 返回 200 则执行
-curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.sh | bash
+```bash
+curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh | bash
+```
+
+**国际用户（从 GitHub 下载）：**
+
+```bash
+curl -fsSL https://github.com/Lycorxy/pvm/raw/master/scripts/install.sh | bash
 ```
 
 安装脚本自动完成：
@@ -136,17 +160,31 @@ curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.sh
 
 ### 方式 B：Releases 手动下载
 
+**国内用户（Gitee）：**
+
+1. 打开 https://gitee.com/lycorxy/pvm/releases
+2. 选择文件：
+
+| 系统 | 文件 |
+|------|------|
+| macOS Intel | `pvm-darwin-amd64` |
+| macOS Apple Silicon | `pvm-darwin-arm64` |
+| Linux x64 | `pvm-linux-amd64` |
+| Linux ARM | `pvm-linux-arm64` |
+
+**国际用户（GitHub）：**
+
 1. 打开 https://github.com/Lycorxy/pvm/releases
 2. 选择文件：
 
 | 系统 | 文件 |
 |------|------|
-| Windows x64 | `pvm-windows-amd64.exe` 或 `.msi` |
-| Windows ARM | `pvm-windows-arm64.exe` 或 `.msi` |
 | macOS Intel | `pvm-darwin-amd64` |
 | macOS Apple Silicon | `pvm-darwin-arm64` |
 | Linux x64 | `pvm-linux-amd64` |
 | Linux ARM | `pvm-linux-arm64` |
+
+**安装步骤：**
 
 3. 安装：
    ```bash

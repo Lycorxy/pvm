@@ -7,36 +7,68 @@ description: 在 Windows / macOS / Linux 上安装 PVM，并完成首次 setup �
 
 ## 一键安装
 
-| 平台 | 命令 |
-| ---- | ---- |
-| Windows (PowerShell) | `irm https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.ps1 \| iex` |
-| macOS / Linux | `curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.sh \| bash` |
+**国内用户（推荐，从 Gitee 下载）：**
+
+| 平台                 | 命令                                                                             |
+| -------------------- | -------------------------------------------------------------------------------- |
+| Windows (PowerShell) | `iwr -useb https://gitee.com/lycorxy/pvm/raw/master/scripts/install.ps1 \| iex`  |
+| macOS / Linux        | `curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh \| bash` |
+
+**国际用户（从 GitHub 下载）：**
+
+| 平台                 | 命令                                                                              |
+| -------------------- | --------------------------------------------------------------------------------- |
+| Windows (PowerShell) | `iwr -useb https://github.com/Lycorxy/pvm/raw/master/scripts/install.ps1 \| iex`  |
+| macOS / Linux        | `curl -fsSL https://github.com/Lycorxy/pvm/raw/master/scripts/install.sh \| bash` |
 
 ## 手动下载
 
-PVM 是**单一二进制**（不含额外的 shim 文件）。从 [Release 页](https://github.com/Lycorxy/pvm/releases) 下载对应平台的文件，放到 PATH 中即可：
+PVM 是**单一二进制**（不含额外的 shim 文件）。从 Release 页下载对应平台的文件，放到 PATH 中即可：
 
-| 平台 | 文件 | 直接下载 (latest) |
-| ---- | ---- | ---------------- |
-| Windows x64 | `pvm-windows-amd64.exe` | [pvm-windows-amd64.exe](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-windows-amd64.exe) |
-| Windows ARM64 | `pvm-windows-arm64.exe` | [pvm-windows-arm64.exe](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-windows-arm64.exe) |
-| macOS Intel | `pvm-darwin-amd64` | [pvm-darwin-amd64](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-darwin-amd64) |
-| macOS Apple Silicon | `pvm-darwin-arm64` | [pvm-darwin-arm64](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-darwin-arm64) |
-| Linux x64 | `pvm-linux-amd64` | [pvm-linux-amd64](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-linux-amd64) |
-| Linux ARM64 | `pvm-linux-arm64` | [pvm-linux-arm64](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-linux-arm64) |
+**国内用户（Gitee 镜像）：**
+
+| 平台                | 文件                    | 直接下载 (latest)                                                                                     |
+| ------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| Windows x64         | `pvm-windows-amd64.exe` | [pvm-windows-amd64.exe](https://gitee.com/lycorxy/pvm/releases/latest/download/pvm-windows-amd64.exe) |
+| Windows ARM64       | `pvm-windows-arm64.exe` | [pvm-windows-arm64.exe](https://gitee.com/lycorxy/pvm/releases/latest/download/pvm-windows-arm64.exe) |
+| macOS Intel         | `pvm-darwin-amd64`      | [pvm-darwin-amd64](https://gitee.com/lycorxy/pvm/releases/latest/download/pvm-darwin-amd64)           |
+| macOS Apple Silicon | `pvm-darwin-arm64`      | [pvm-darwin-arm64](https://gitee.com/lycorxy/pvm/releases/latest/download/pvm-darwin-arm64)           |
+| Linux x64           | `pvm-linux-amd64`       | [pvm-linux-amd64](https://gitee.com/lycorxy/pvm/releases/latest/download/pvm-linux-amd64)             |
+| Linux ARM64         | `pvm-linux-arm64`       | [pvm-linux-arm64](https://gitee.com/lycorxy/pvm/releases/latest/download/pvm-linux-arm64)             |
+
+**国际用户（GitHub）：**
+
+| 平台                | 文件                    | 直接下载 (latest)                                                                                      |
+| ------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| Windows x64         | `pvm-windows-amd64.exe` | [pvm-windows-amd64.exe](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-windows-amd64.exe) |
+| Windows ARM64       | `pvm-windows-arm64.exe` | [pvm-windows-arm64.exe](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-windows-arm64.exe) |
+| macOS Intel         | `pvm-darwin-amd64`      | [pvm-darwin-amd64](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-darwin-amd64)           |
+| macOS Apple Silicon | `pvm-darwin-arm64`      | [pvm-darwin-arm64](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-darwin-arm64)           |
+| Linux x64           | `pvm-linux-amd64`       | [pvm-linux-amd64](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-linux-amd64)             |
+| Linux ARM64         | `pvm-linux-arm64`       | [pvm-linux-arm64](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-linux-arm64)             |
 
 也可下载 `pvm-vX.X.X-{os}-{arch}.zip` 解压后使用。
 
 Windows 还提供 MSI 安装包（双击安装，自动配置 PATH 并运行 `pvm setup`）：
 
-| 平台 | MSI 安装包 |
-| ---- | ---------- |
-| Windows x64 | [pvm-windows-amd64.msi](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-windows-amd64.msi) |
+**国内用户（Gitee）：**
+
+| 平台          | MSI 安装包                                                                                            |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| Windows x64   | [pvm-windows-amd64.msi](https://gitee.com/lycorxy/pvm/releases/latest/download/pvm-windows-amd64.msi) |
+| Windows ARM64 | [pvm-windows-arm64.msi](https://gitee.com/lycorxy/pvm/releases/latest/download/pvm-windows-arm64.msi) |
+
+**国际用户（GitHub）：**
+
+| 平台          | MSI 安装包                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------ |
+| Windows x64   | [pvm-windows-amd64.msi](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-windows-amd64.msi) |
 | Windows ARM64 | [pvm-windows-arm64.msi](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-windows-arm64.msi) |
 
 :::tip 仓库地址
-源码：[github.com/Lycorxy/pvm](https://github.com/Lycorxy/pvm) ·
-Release：[github.com/Lycorxy/pvm/releases](https://github.com/Lycorxy/pvm/releases)
+**Gitee（国内）：** 源码：[gitee.com/lycorxy/pvm](https://gitee.com/lycorxy/pvm) · Release：[gitee.com/lycorxy/pvm/releases](https://gitee.com/lycorxy/pvm/releases)
+
+**GitHub（国际）：** 源码：[github.com/Lycorxy/pvm](https://github.com/Lycorxy/pvm) · Release：[github.com/Lycorxy/pvm/releases](https://github.com/Lycorxy/pvm/releases)
 :::
 
 ## 首次初始化（setup）
