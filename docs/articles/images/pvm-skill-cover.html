@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PVM + AI Skill 封面图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        .cover {
+            width: 1200px;
+            height: 675px;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 背景装饰 */
+        .bg-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.5;
+        }
+
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+        }
+
+        .orb-1 {
+            width: 300px;
+            height: 300px;
+            background: #6366f1;
+            top: -100px;
+            right: -50px;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .orb-2 {
+            width: 250px;
+            height: 250px;
+            background: #8b5cf6;
+            bottom: -80px;
+            left: -50px;
+            animation: float 8s ease-in-out infinite reverse;
+        }
+
+        .orb-3 {
+            width: 200px;
+            height: 200px;
+            background: #06b6d4;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.3;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-30px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        /* 主内容 */
+        .content {
+            position: relative;
+            z-index: 10;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px 80px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            border-radius: 50px;
+            color: #a5b4fc;
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            width: fit-content;
+        }
+
+        .badge .dot {
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        h1 {
+            font-size: 56px;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1.2;
+            margin-bottom: 16px;
+            letter-spacing: -1px;
+        }
+
+        h1 .highlight {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 22px;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 32px;
+            max-width: 600px;
+        }
+
+        .features {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #e2e8f0;
+            font-size: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .feature .icon {
+            font-size: 20px;
+        }
+
+        /* 终端窗口 */
+        .terminal {
+            position: absolute;
+            right: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 420px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 
+                0 20px 40px -10px rgba(0, 0, 0, 0.5),
+                0 0 40px rgba(99, 102, 241, 0.2);
+            backdrop-filter: blur(20px);
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(30, 41, 59, 0.8);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .terminal-dot.red { background: #ef4444; }
+        .terminal-dot.yellow { background: #eab308; }
+        .terminal-dot.green { background: #22c55e; }
+
+        .terminal-title {
+            margin-left: 12px;
+            color: #64748b;
+            font-size: 13px;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .terminal-body {
+            padding: 16px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .line {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .prompt {
+            color: #22c55e;
+            flex-shrink: 0;
+        }
+
+        .command {
+            color: #e2e8f0;
+        }
+
+        .command .keyword {
+            color: #60a5fa;
+        }
+
+        .output {
+            color: #94a3b8;
+            margin-left: 0;
+        }
+
+        .output .success {
+            color: #22c55e;
+        }
+
+        .output .path {
+            color: #c084fc;
+        }
+
+        /* 底部标签 */
+        .bottom-tags {
+            position: absolute;
+            bottom: 40px;
+            left: 80px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .tag {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: #cbd5e1;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* 漂浮的语言图标 */
+        .floating-icons {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .lang-icon {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            color: #fff;
+            backdrop-filter: blur(10px);
+            animation: floatIcon 5s ease-in-out infinite;
+        }
+
+        .lang-icon.node { top: 80px; right: 520px; background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.4); color: #4ade80; animation-delay: 0s; }
+        .lang-icon.python { top: 160px; right: 580px; background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.4); color: #60a5fa; animation-delay: 1s; }
+        .lang-icon.go { top: 260px; right: 540px; background: rgba(6, 182, 212, 0.2); border-color: rgba(6, 182, 212, 0.4); color: #22d3ee; animation-delay: 2s; }
+        .lang-icon.rust { bottom: 180px; right: 560px; background: rgba(249, 115, 22, 0.2); border-color: rgba(249, 115, 22, 0.4); color: #fb923c; animation-delay: 3s; }
+        .lang-icon.pnpm { bottom: 100px; right: 500px; background: rgba(249, 204, 22, 0.2); border-color: rgba(249, 204, 22, 0.4); color: #facc15; animation-delay: 1.5s; }
+
+        @keyframes floatIcon {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(5deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="cover">
+        <!-- 背景装饰 -->
+        <div class="bg-grid"></div>
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+        <div class="glow-orb orb-3"></div>
+
+        <!-- 漂浮的语言图标 -->
+        <div class="floating-icons">
+            <div class="lang-icon node">Node</div>
+            <div class="lang-icon python">Py</div>
+            <div class="lang-icon go">Go</div>
+            <div class="lang-icon rust">Rs</div>
+            <div class="lang-icon pnpm">pnpm</div>
+        </div>
+
+        <!-- 主内容 -->
+        <div class="content">
+            <div class="badge">
+                <span class="dot"></span>
+                <span>AI 驱动 · 9 种运行时统一管理</span>
+            </div>
+
+            <h1>
+                <span class="highlight">Skill + PVM</span>
+                <br>
+                AI 直接帮你搞定环境问题
+            </h1>
+
+            <p class="subtitle">
+                告别 nvm / pyenv / gvm 一堆工具，一句话安装 Node、Python、Go、Rust...
+                <br>
+                冲突清理、权限修复、依赖锁定，AI 全包了。
+            </p>
+
+            <div class="features">
+                <div class="feature">
+                    <span class="icon">⚡</span>
+                    <span>30 秒装完</span>
+                </div>
+                <div class="feature">
+                    <span class="icon">🔄</span>
+                    <span>自动切换版本</span>
+                </div>
+                <div class="feature">
+                    <span class="icon">🛡️</span>
+                    <span>环境不漂移</span>
+                </div>
+            </div>
+
+            <div class="bottom-tags">
+                <span class="tag">Node.js</span>
+                <span class="tag">Python</span>
+                <span class="tag">Go</span>
+                <span class="tag">Rust</span>
+                <span class="tag">Bun / Deno</span>
+                <span class="tag">pnpm / Yarn</span>
+                <span class="tag">Git</span>
+            </div>
+        </div>
+
+        <!-- 终端窗口 -->
+        <div class="terminal">
+            <div class="terminal-header">
+                <span class="terminal-dot red"></span>
+                <span class="terminal-dot yellow"></span>
+                <span class="terminal-dot green"></span>
+                <span class="terminal-title">pvm — zsh</span>
+            </div>
+            <div class="terminal-body">
+                <div class="line">
+                    <span class="prompt">$</span>
+                    <span class="command"><span class="keyword">pvm</span> install node@20 --mirror</span>
+                </div>
+                <div class="line output">
+                    <span class="success">✓</span> Node.js 20.18.0 安装完成
+                </div>
+                <div class="line" style="margin-top: 8px;">
+                    <span class="prompt">$</span>
+                    <span class="command"><span class="keyword">pvm</span> install python@3.12 --mirror</span>
+                </div>
+                <div class="line output">
+                    <span class="success">✓</span> Python 3.12.4 安装完成
+                </div>
+                <div class="line" style="margin-top: 8px;">
+                    <span class="prompt">$</span>
+                    <span class="command"><span class="keyword">pvm</span> install pnpm@9 --mirror</span>
+                </div>
+                <div class="line output">
+                    <span class="success">✓</span> pnpm 9.15.0 安装完成
+                </div>
+                <div class="line" style="margin-top: 8px;">
+                    <span class="prompt">$</span>
+                    <span class="command">node -v && python -V && pnpm -v</span>
+                </div>
+                <div class="line output">
+                    v20.18.0 · Python 3.12.4 · 9.15.0
+                </div>
+                <div class="line output" style="margin-top: 12px;">
+                    <span class="success">➜</span> <span class="path">~/.pvm</span> 全部就绪 🚀
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

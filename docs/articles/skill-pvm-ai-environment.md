@@ -1,5 +1,7 @@
 # Skill + PVM 绝了，AI 直接帮你搞定环境问题了
 
+![PVM + AI Skill 封面图](images/pvm-skill-cover.jpg)
+
 > **你是否遇到过这些场景：**
 >
 > - **后端开发者**：克隆前端项目，`npm install` 报错 —— "Node 版本不对，你本地装个 18"
