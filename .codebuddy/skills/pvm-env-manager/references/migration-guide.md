@@ -20,10 +20,8 @@
 
 ```powershell
 # 1. 安装 PVM（如未安装）
-# 方式 A：一键脚本（可能 404 则用方式 B）
-iwr -useb https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.ps1 | iex
-# 方式 B：从 https://github.com/Lycorxy/pvm/releases 下载 pvm-windows-amd64.exe
-#       放到 %USERPROFILE%\.pvm\bin\pvm.exe，然后运行 pvm setup
+# 自动检测 Windows x64/ARM64，并选择匹配 Release
+& "<SKILL_ROOT>\scripts\install-pvm.ps1"
 
 # 2. 查看 nvm 当前版本
 nvm list
@@ -48,10 +46,8 @@ pvm setup
 
 ```bash
 # 1. 安装 PVM
-# 方式 A：一键脚本（可能 404 则用方式 B）
-curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.sh | bash
-# 方式 B：从 https://github.com/Lycorxy/pvm/releases 下载对应平台二进制
-#       放到 ~/.pvm/bin/pvm，chmod +x，然后运行 ~/.pvm/bin/pvm setup
+# 自动检测 macOS/Linux、Intel/Apple Silicon/x64/ARM64，并选择匹配 Release
+bash "<SKILL_ROOT>/scripts/install-pvm.sh"
 
 # 2. 查看 nvm 版本
 nvm ls

@@ -7,23 +7,79 @@ description: 在 Windows / macOS / Linux 上安装 PVM，并完成首次 setup �
 
 ## 一键安装
 
-**国内用户（推荐，从 Gitee 下载）：**
+安装脚本会自动检测操作系统和 CPU 架构（x64 / ARM64、Intel / Apple Silicon），下载匹配的最新稳定版并完成初始化，**无需手动选择安装包**。
 
-| 平台                 | 命令                                                                             |
-| -------------------- | -------------------------------------------------------------------------------- |
-| Windows (PowerShell) | `iwr -useb https://gitee.com/lycorxy/pvm/raw/master/scripts/install.ps1 \| iex`  |
-| macOS / Linux        | `curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh \| bash` |
+### Windows（PowerShell）
 
-**国际用户（从 GitHub 下载）：**
+国内镜像（推荐，更快）：
 
-| 平台                 | 命令                                                                              |
-| -------------------- | --------------------------------------------------------------------------------- |
-| Windows (PowerShell) | `iwr -useb https://github.com/Lycorxy/pvm/raw/master/scripts/install.ps1 \| iex`  |
-| macOS / Linux        | `curl -fsSL https://github.com/Lycorxy/pvm/raw/master/scripts/install.sh \| bash` |
+```powershell
+irm https://gitee.com/lycorxy/pvm/raw/master/scripts/install.ps1 | iex
+```
+
+国际网络（GitHub）：
+
+```powershell
+irm https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.ps1 | iex
+```
+
+等价写法：`iwr -useb <上面的 URL> | iex`
+
+脚本行为：自动识别 x64 / ARM64 → 安装到 `%USERPROFILE%\.pvm\bin\pvm.exe` → 配置用户 PATH（默认不提权，不弹 UAC）。
+
+### macOS（终端）
+
+国内镜像（推荐，更快）：
+
+```bash
+curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh | bash
+```
+
+国际网络（GitHub）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.sh | bash
+```
+
+脚本行为：自动识别 Intel / Apple Silicon（Rosetta 终端也按原生 ARM64 处理）→ 安装到 `~/.pvm/bin/pvm` → 写入 `~/.zshrc`（bash 用户写 `.bashrc`，文件不存在会自动创建）。
+
+::::warning 注意
+macOS 上**不要**下载裸二进制后双击打开——它是命令行程序，双击会被文本编辑器当成文本报错。请始终使用上面的终端命令安装。
+::::
+
+### Linux（终端）
+
+国内镜像（推荐，更快）：
+
+```bash
+curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh | bash
+```
+
+国际网络（GitHub）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.sh | bash
+```
+
+脚本行为：自动识别 x64 / ARM64 → 安装到 `~/.pvm/bin/pvm` → 写入 shell 配置文件（支持 bash / zsh / fish）。
+
+### 安装脚本通用说明
+
+- Gitee 下载失败会**自动回退 GitHub**，无需手动切换。
+- 未安装 `curl` 时自动改用 `wget`。
+- 下载到临时文件，校验并验证可执行后才替换旧版本，不会破坏现有安装。
+- 指定版本 / 下载源等参数见下方[高级选项](#高级选项)。
+- 安装完成后**重启终端**（或 `source ~/.zshrc`），运行 `pvm version` 验证。
 
 ## 手动下载
 
-PVM 是**单一二进制**（不含额外的 shim 文件）。从 Release 页下载对应平台的文件，放到 PATH 中即可：
+PVM 是**单一二进制**（不含额外的 shim 文件）。从 Release 页下载对应平台的文件：
+
+::::warning macOS / Linux 用户注意
+下载的是命令行程序，**不要双击打开**（会被文本编辑器当成文本报错）。
+请在终端中完成安装，见下方步骤。不确定架构时运行 `uname -m`：
+`x86_64` 选 amd64，`arm64`/`aarch64` 选 arm64（Apple Silicon 的 Rosetta 终端也选 arm64）。
+::::
 
 **国内用户（Gitee 镜像）：**
 
@@ -47,7 +103,43 @@ PVM 是**单一二进制**（不含额外的 shim 文件）。从 Release 页下
 | Linux x64           | `pvm-linux-amd64`       | [pvm-linux-amd64](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-linux-amd64)             |
 | Linux ARM64         | `pvm-linux-arm64`       | [pvm-linux-arm64](https://github.com/Lycorxy/pvm/releases/latest/download/pvm-linux-arm64)             |
 
-也可下载 `pvm-vX.X.X-{os}-{arch}.zip` 解压后使用。
+**macOS / Linux 安装步骤**（以 Apple Silicon 为例，其他架构替换文件名）：
+
+```bash
+cd ~/Downloads
+mkdir -p ~/.pvm/bin
+mv pvm-darwin-arm64 ~/.pvm/bin/pvm
+chmod +x ~/.pvm/bin/pvm
+~/.pvm/bin/pvm setup
+```
+
+**Windows 安装步骤**（PowerShell）：
+
+```powershell
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.pvm\bin"
+Move-Item "$env:USERPROFILE\Downloads\pvm-windows-amd64.exe" "$env:USERPROFILE\.pvm\bin\pvm.exe"
+& "$env:USERPROFILE\.pvm\bin\pvm.exe" setup
+```
+
+也可下载 `pvm-vX.X.X-{os}-{arch}.zip` 解压后使用；macOS/Linux 解压后同样需要执行上面的 `chmod +x` 步骤。
+
+## 高级选项
+
+安装脚本支持以下参数和环境变量：
+
+| 选项 | 环境变量 | 说明 |
+| ---- | -------- | ---- |
+| `--version vX.Y.Z` / `-Version vX.Y.Z` | `PVM_INSTALL_VERSION` | 安装指定版本（默认最新） |
+| `--source auto\|gitee\|github` / `-Source ...` | `PVM_INSTALL_SOURCE` | 指定下载源（默认 auto：Gitee 优先，失败回退 GitHub） |
+| — | `PVM_HOME` | 自定义安装根目录（默认 `~/.pvm`） |
+| — | `PVM_REQUIRE_CHECKSUM=1` | Release 缺少 `checksums.txt` 时安装失败（默认仅警告） |
+| — | `PVM_NO_MODIFY_PROFILE=1`（Unix）/ `PVM_NO_MODIFY_PATH=1`（Windows） | 不修改 shell 配置 / 用户 PATH |
+
+示例：
+
+```bash
+curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh | bash -s -- --version v0.0.1 --source github
+```
 
 Windows 还提供 MSI 安装包（双击安装，自动配置 PATH 并运行 `pvm setup`）：
 
@@ -112,7 +204,7 @@ pvm setup
 - 创建根目录 `~/.pvm`（可用环境变量 `PVM_HOME` 覆盖）。
 - 创建 `versions/`、`installs/`、`shims/` 子目录。
 - 把 `~/.pvm/shims` 与 `~/.pvm/bin` 加入用户 PATH。
-- 如果系统 PATH 中有 nvm/node/python 等冲突路径，自动把 pvm shims **前置到系统 PATH 最前**（需管理员权限），确保 pvm 的版本优先生效。
+- 如果系统 PATH 中有 nvm/node/python 等冲突路径，**报告冲突**；手动运行 `pvm setup` 时可选择以管理员权限把 pvm shims 前置到系统 PATH（一键安装默认不提权，仅修改用户级 PATH）。
 
 ## 检查 PATH
 

@@ -1,6 +1,6 @@
 # pvm - Polyglot Version Manager
 
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://go.dev/)
+[![Go Version](https://img.shields.io/badge/Go-1.25.5+-00ADD8?logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)]()
 
@@ -29,12 +29,18 @@
 
 ### Windows
 
-下载最新 [MSI 安装包](https://github.com/your-org/pvm/releases/latest)，双击安装。
+下载最新 [MSI 安装包](https://github.com/Lycorxy/pvm/releases/latest)，双击安装。
 
-或通过 PowerShell 安装：
+或通过 PowerShell 安装（国内镜像更快）：
 
 ```powershell
-irm https://raw.githubusercontent.com/your-org/pvm/main/scripts/install.ps1 | iex
+irm https://gitee.com/lycorxy/pvm/raw/master/scripts/install.ps1 | iex
+```
+
+国际网络：
+
+```powershell
+irm https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.ps1 | iex
 ```
 
 > **安全提示**：pvm 目前没有代码签名证书（$300-500/年），Windows Defender / 360 可能误报。点击「更多信息」→「仍要运行」即可。详见 [安全说明](#windows-安全提示)。
@@ -42,13 +48,17 @@ irm https://raw.githubusercontent.com/your-org/pvm/main/scripts/install.ps1 | ie
 ### macOS / Linux
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/your-org/pvm/main/scripts/install.sh | bash
+# 国内镜像（推荐）
+curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh | bash
+
+# 国际网络
+curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.sh | bash
 ```
 
 或手动安装：
 
 ```sh
-git clone https://github.com/your-org/pvm.git ~/.pvm
+git clone https://github.com/Lycorxy/pvm.git ~/.pvm
 cd ~/.pvm
 go build -o bin/pvm .
 export PATH="$HOME/.pvm/shims:$HOME/.pvm/bin:$PATH"
@@ -191,7 +201,7 @@ pvm install node@20 --mirror
 
 ```sh
 # 克隆项目
-git clone https://github.com/your-org/pvm.git
+git clone https://github.com/Lycorxy/pvm.git
 cd pvm
 
 # 编译

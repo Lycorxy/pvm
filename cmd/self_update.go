@@ -18,7 +18,7 @@ import (
 )
 
 // ReleaseRepo 是 pvm 发布仓库（构建时可通过 ldflags 覆盖）
-var ReleaseRepo = "lucky-zsh/pvm"
+var ReleaseRepo = "lycorxy/pvm"
 
 const releaseBaseURL = "https://gitee.com/%s/releases/download/%s/%s"
 

@@ -77,7 +77,7 @@ func runAsAdmin(args []string) error {
 //  4. 将 ~/.pvm/shims 和 ~/.pvm/bin 加入用户 PATH
 //  5. 设置 PVM_HOME 环境变量
 func runSetup(args []string) error {
-	_ = args // 目前不接受额外参数，保持签名一致性
+	_, noElevate := hasFlag(args, "--no-elevate")
 	home := config.PvmHome()
 	binHome := config.BinHome()
 	shimsDir := config.ShimsDir()
@@ -195,7 +195,7 @@ func runSetup(args []string) error {
 	// ---- 4. 配置 PATH ----
 	logger.Info("  → Configuring PATH...")
 	if runtime.GOOS == "windows" {
-		if err := setupWindowsPath(binHome, shimsDir); err != nil {
+		if err := setupWindowsPath(binHome, shimsDir, noElevate); err != nil {
 			return err
 		}
 	} else {
@@ -265,7 +265,7 @@ func installPvmShim(currentExe, binHome string) {
 
 // setupWindowsPath 在 Windows 上将 shims 和 bin 目录加入用户 PATH
 // 并确保它们排在最前面，同时检测并移除冲突的系统 runtime 路径
-func setupWindowsPath(binHome, shimsDir string) error {
+func setupWindowsPath(binHome, shimsDir string, noElevate bool) error {
 	// 读取用户级 PATH
 	regPath, err := exec.Command("powershell", "-NoProfile", "-Command",
 		`[Environment]::GetEnvironmentVariable('Path','User')`).Output()
@@ -383,7 +383,7 @@ func setupWindowsPath(binHome, shimsDir string) error {
 	// 3. 检测并修复系统级 PATH（Machine）中的冲突目录
 	// Windows 合并 PATH 顺序为：系统 PATH + 用户 PATH
 	// 若系统 PATH 中存在冲突的 runtime 目录，它们会排在用户 PATH 的 shims 前面，导致 shim 失效
-	if err := fixSystemPathConflicts(conflictDirNames); err != nil {
+	if err := fixSystemPathConflicts(conflictDirNames, noElevate); err != nil {
 		logger.Info("  ⚠ Could not auto-fix system PATH conflicts: %v", err)
 	}
 
@@ -489,7 +489,7 @@ func detectVersionManagers(conflictPaths []string) map[string]string {
 // Strategy: if running as admin -> directly modify system PATH to move conflicting paths to end
 //
 //	if not admin -> auto-elevate via UAC prompt to re-run setup with admin rights
-func fixSystemPathConflicts(conflictDirNames []string) error {
+func fixSystemPathConflicts(conflictDirNames []string, noElevate bool) error {
 	sysPath, err := exec.Command("powershell", "-NoProfile", "-Command",
 		"[Environment]::GetEnvironmentVariable('Path','Machine')").Output()
 	if err != nil {
@@ -527,6 +527,12 @@ func fixSystemPathConflicts(conflictDirNames []string) error {
 		// Already admin: directly fix system PATH
 		logger.Info("  OK Running as Administrator - auto-fixing system PATH...")
 		return fixSystemPathDirectly(sysEntries, sysConflicts)
+	}
+
+	if noElevate {
+		logger.Info("  ⚠ System PATH conflicts were not modified (--no-elevate).")
+		logger.Info("    Run 'pvm setup' later if you want to review and fix them with administrator permission.")
+		return nil
 	}
 
 	// Not admin: auto-elevate
@@ -828,7 +834,7 @@ func setupPathWindows(shimsDir, binHome string, checkOnly bool) error {
 	}
 
 	logger.Info("  → Fixing PATH configuration...")
-	if err := setupWindowsPath(binHome, shimsDir); err != nil {
+	if err := setupWindowsPath(binHome, shimsDir, false); err != nil {
 		return err
 	}
 	fmt.Println()

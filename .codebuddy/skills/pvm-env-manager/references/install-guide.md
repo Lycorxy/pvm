@@ -1,46 +1,65 @@
 # PVM 安装指南
 
-## 多级安装策略（按顺序尝试）
+## 自动检测安装策略
 
-> **核心原则：从最简单到最复杂，成功即停。**
+> **核心原则：不让用户手动选择平台、架构或资产。**
 
+```text
+检查现有 PVM
+  → 检测 Windows/macOS/Linux
+  → 检测原生 amd64/arm64（Rosetta 下识别真实 Apple Silicon）
+  → 用户指定版本则使用指定版本，否则解析最新稳定 Release
+  → Gitee 下载失败自动回退 GitHub
+  → 校验并执行对应平台安装器
+  → 使用绝对路径执行 version 和 doctor
 ```
-方式 A：一键脚本（推荐）     ← 最快，但依赖作者已推送脚本
-  ↓ 失败（404 / 脚本不存在）
-方式 B：Releases 下载         ← 需手动下载，最可靠
-  ↓ 失败（无 Release）
-方式 C：源码自建              ← 需要 Go 环境
-```
+
+优先调用 Skill 自带的 `scripts/install-pvm.ps1` 或 `scripts/install-pvm.sh`。只有自动安装失败时才进入手动 Release；没有匹配 Release 时才考虑源码构建。
 
 ---
 
 ## Windows
 
-### 方式 A：PowerShell 一键安装
+### 方式 A：自动检测并安装
 
-**国内用户（推荐，从 Gitee 下载）：**
-
-```powershell
-# 执行安装脚本
-iwr -useb https://gitee.com/lycorxy/pvm/raw/master/scripts/install.ps1 | iex
-```
-
-**国际用户（从 GitHub 下载）：**
+当前仓库可直接复制：
 
 ```powershell
-# 执行安装脚本
-iwr -useb https://github.com/Lycorxy/pvm/raw/master/scripts/install.ps1 | iex
+& "D:\gitfile\pvm\.codebuddy\skills\pvm-env-manager\scripts\install-pvm.ps1"
 ```
 
-安装脚本会自动：
-1. 检测系统架构（amd64 / arm64）
-2. 下载最新版 PVM 到 `~/.pvm/bin/pvm.exe`
-3. 运行 `pvm reshim` 生成 shim 硬链接
-4. 将 `~/.pvm/shims` 和 `~/.pvm/bin` 前置到用户 PATH
-5. 检测并移除 PATH 中的冲突路径（nodejs、nvm、python 等）
-6. 检测系统 PATH 冲突（需管理员权限自动清理）
+通用 Skill 路径：
 
-**如果返回 404 → 跳到方式 B**
+```powershell
+# <SKILL_ROOT> 替换为当前已加载 Skill 的绝对目录
+& "<SKILL_ROOT>\scripts\install-pvm.ps1"
+
+# 指定版本或下载源
+& "<SKILL_ROOT>\scripts\install-pvm.ps1" -Version v0.0.1
+& "<SKILL_ROOT>\scripts\install-pvm.ps1" -Source github
+```
+
+不依赖 Skill 的远程一键安装：
+
+```powershell
+irm https://gitee.com/lycorxy/pvm/raw/master/scripts/install.ps1 | iex
+```
+
+引导脚本会自动：
+1. 检测 Windows x64 / ARM64，并确定对应资产名。
+2. 优先调用当前仓库中的正式安装器；分发到其他项目时自动下载正式安装器。
+3. 未指定版本时解析最新稳定 Release。
+4. 从 Gitee 下载，失败后回退 GitHub。
+5. 下载到临时文件，进行校验和可执行版本验证后再替换旧版本。
+6. 安装到 `%USERPROFILE%\.pvm\bin\pvm.exe`，运行 `pvm setup` 并配置用户 PATH。
+
+仅探测不安装：
+
+```powershell
+& "<SKILL_ROOT>\scripts\install-pvm.ps1" -DetectOnly
+```
+
+自动安装失败后再进入方式 B。
 
 ### 方式 B：Releases 手动下载
 
@@ -51,8 +70,8 @@ iwr -useb https://github.com/Lycorxy/pvm/raw/master/scripts/install.ps1 | iex
 
 | 系统 | 文件 |
 |------|------|
-| Windows x64 | `pvm-windows-amd64.exe` 或 `.msi` |
-| Windows ARM | `pvm-windows-arm64.exe` 或 `.msi` |
+| Windows x64 | `pvm-windows-amd64.exe` |
+| Windows ARM64 | `pvm-windows-arm64.exe` |
 
 **国际用户（GitHub）：**
 
@@ -61,8 +80,8 @@ iwr -useb https://github.com/Lycorxy/pvm/raw/master/scripts/install.ps1 | iex
 
 | 系统 | 文件 |
 |------|------|
-| Windows x64 | `pvm-windows-amd64.exe` 或 `.msi` |
-| Windows ARM | `pvm-windows-arm64.exe` 或 `.msi` |
+| Windows x64 | `pvm-windows-amd64.exe` |
+| Windows ARM64 | `pvm-windows-arm64.exe` |
 
 **安装步骤：**
 
@@ -75,12 +94,12 @@ iwr -useb https://github.com/Lycorxy/pvm/raw/master/scripts/install.ps1 | iex
 
 4. 初始化：
    ```powershell
-   & "$env:USERPROFILE\.pvm\bin\pvm.exe" setup"
+   & "$env:USERPROFILE\.pvm\bin\pvm.exe" setup
    ```
 
 ### 方式 C：源码自建
 
-需要 Go 1.22+ 编译环境。
+需要与项目 `go.mod` 一致的 Go 1.25.5+ 编译环境。
 
 ```powershell
 git clone https://github.com/Lycorxy/pvm.git $env:TEMP\pvm
@@ -136,27 +155,46 @@ PVM 的 shim 是 pvm.exe 的硬链接，杀软可能误报。
 
 ## macOS / Linux
 
-### 方式 A：一键安装
+### 方式 A：自动检测并安装
 
-**国内用户（推荐，从 Gitee 下载）：**
+Skill 位于当前仓库时：
+
+```bash
+bash .codebuddy/skills/pvm-env-manager/scripts/install-pvm.sh
+```
+
+通用 Skill 路径：
+
+```bash
+# <SKILL_ROOT> 替换为当前已加载 Skill 的绝对目录
+bash "<SKILL_ROOT>/scripts/install-pvm.sh"
+
+# 指定版本或下载源
+bash "<SKILL_ROOT>/scripts/install-pvm.sh" --version v0.0.1
+bash "<SKILL_ROOT>/scripts/install-pvm.sh" --source github
+```
+
+不依赖 Skill 的远程一键安装：
 
 ```bash
 curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh | bash
 ```
 
-**国际用户（从 GitHub 下载）：**
+引导脚本会自动：
+1. 检测 macOS/Linux 和 amd64/arm64。
+2. 在 Apple Silicon 的 Rosetta 终端中识别真实 ARM64，选择原生资产。
+3. 未指定版本时解析最新稳定 Release。
+4. 从 Gitee 下载，失败后回退 GitHub。
+5. 下载到临时文件，验证校验值、可执行性和版本后安装。
+6. 执行 `pvm setup`，创建目录并配置 zsh/bash/fish 的 PATH。
+
+仅探测不安装：
 
 ```bash
-curl -fsSL https://github.com/Lycorxy/pvm/raw/master/scripts/install.sh | bash
+bash "<SKILL_ROOT>/scripts/install-pvm.sh" --detect-only
 ```
 
-安装脚本自动完成：
-1. 检测 OS（darwin / linux）和架构（amd64 / arm64）
-2. 下载最新版 PVM 到 `~/.pvm/bin/pvm`
-3. 运行 `pvm reshim` 生成 shim 硬链接
-4. 在 shell rc 文件中添加 PATH 配置
-
-**如果 404 → 跳到方式 B**
+自动安装失败后再进入方式 B。
 
 ### 方式 B：Releases 手动下载
 
@@ -196,7 +234,7 @@ curl -fsSL https://github.com/Lycorxy/pvm/raw/master/scripts/install.sh | bash
 
 ### 方式 C：源码自建
 
-需要 Go 1.22+。
+需要与项目 `go.mod` 一致的 Go 1.25.5+。
 
 ```bash
 git clone https://github.com/Lycorxy/pvm.git /tmp/pvm && cd /tmp/pvm
@@ -206,10 +244,16 @@ chmod +x ~/.pvm/bin/pvm
 ~/.pvm/bin/pvm setup
 ```
 
-### 指定版本安装（仅方式 A 支持）
+### 指定版本安装
 
 ```bash
-PVM_INSTALL_VERSION=v1.0.0 curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/main/scripts/install.sh | bash
+bash "<SKILL_ROOT>/scripts/install-pvm.sh" --version v0.0.1
+```
+
+如果脱离 Skill 直接使用远程正式安装器，参数必须传给 Bash，而不是只传给 `curl`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.sh | bash -s -- --version v0.0.1
 ```
 
 ### 安装后验证
@@ -229,10 +273,13 @@ pvm doctor
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `PVM_HOME` | PVM 安装根目录 | `~/.pvm` |
-| `PVM_REPO` | GitHub 仓库（owner/name） | `Lycorxy/pvm` |
-| `PVM_INSTALL_VERSION` | 指定安装版本 | 最新版 |
-| `PVM_NO_MODIFY_PATH` | 设为 `1` 则不修改 PATH | — |
-| `PVM_NO_MODIFY_PROFILE` | 设为 `1` 则不修改 shell rc | — |
+| `PVM_INSTALL_VERSION` | 指定安装版本 | 最新稳定版 |
+| `PVM_INSTALL_SOURCE` | `auto` / `gitee` / `github` | `auto` |
+| `PVM_GITEE_REPO` | Gitee 仓库 | `lycorxy/pvm` |
+| `PVM_GITHUB_REPO` | GitHub 仓库 | `Lycorxy/pvm` |
+| `PVM_REQUIRE_CHECKSUM` | 设为 `1` 时缺少校验文件即失败 | `0` |
+| `PVM_NO_MODIFY_PATH` | Windows 设为 `1` 则不修改 PATH | `0` |
+| `PVM_NO_MODIFY_PROFILE` | macOS/Linux 设为 `1` 则不修改 shell profile | `0` |
 
 ---
 

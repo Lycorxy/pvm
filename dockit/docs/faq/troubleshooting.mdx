@@ -8,7 +8,7 @@ description: PVM 常见故障与对应排查命令。
 | 现象 | 可能原因 | 排查 / 解决 |
 | ---- | -------- | ----------- |
 | `pvm` 命令找不到 | PATH 未包含 shims | `pvm setup-path` 并检查用户 PATH |
-| `node` 仍是系统 / nvm 旧版本 | 系统 PATH 中有 `D:\node` 等覆盖了 pvm shims | 重跑 `pvm setup`，它会自动提权把 pvm shims **前置到系统 PATH 最前** |
+| `node` 仍是系统 / nvm 旧版本 | 系统 PATH 中有 `D:\node` 等覆盖了 pvm shims | 重跑 `pvm setup`，确认 UAC 后把 pvm shims **前置到系统 PATH 最前**；不想提权用 `pvm setup --no-elevate` 仅报告冲突 |
 | `pvm use node@18` 后 `node -v` 没变 | IDE 缓存了旧的 PATH | **完全退出 IDE 再重开**（不要只用 reload window） |
 | 装了版本但命令没有 | shim 未生成 | `pvm reshim` |
 | 安装报 403 / GitHub 限流 | 默认镜像源偶发 | 加 `--official` 或等待自动降级重试 |

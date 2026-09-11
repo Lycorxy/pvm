@@ -11,6 +11,7 @@ description: pvm setup 与 pvm doctor 命令——首次初始化、PATH 冲突�
 
 ```bash
 pvm setup            # 手动初始化
+pvm setup --no-elevate   # 初始化但不请求管理员权限（仅报告系统 PATH 冲突）
 pvm setup-path       # 仅检查并修复 PATH 配置
 ```
 
@@ -22,7 +23,7 @@ pvm setup-path       # 仅检查并修复 PATH 配置
 如果系统 PATH 中存在 nvm 的 node（如 `D:\node`、`D:\nvm`）或系统 nodejs（`D:\nodejs`），
 这些路径会覆盖 pvm 的用户级 shim——因为 Windows PATH 合并顺序为"系统 PATH 在前 → 用户 PATH 在后"。
 
-`setup` 检测到冲突后会自动请求管理员权限，**把 pvm shims 前置到系统 PATH 最前**：
+`setup` 检测到冲突后会请求管理员权限，**把 pvm shims 前置到系统 PATH 最前**：
 
 ```
 系统 PATH = [~/.pvm/shims, ~/.pvm/bin, ..., D:\node, D:\nvm, D:\nodejs]
@@ -30,6 +31,9 @@ pvm setup-path       # 仅检查并修复 PATH 配置
 ```
 
 这样 pvm 的 shim 优先于 nvm 的软链接，`node` 命令走 pvm 的版本。nvm 的路径保留在末尾（下次重开终端即删除即可）。
+
+不想弹 UAC 时用 `pvm setup --no-elevate`：只修改用户级 PATH，系统 PATH 冲突仅打印报告。
+一键安装脚本默认就以此方式调用（不提权，仅用户级 PATH）。
 
 ### 单二进制
 

@@ -218,7 +218,7 @@ func warnIfShimsNotInPath() {
 		// Windows: 自动尝试修复（会弹出 UAC 提示框）
 		logger.Info("     → Auto-fixing... (Administrator permission required)")
 		conflictDirNames := []string{"nodejs", "node", "nvm", "python", "go", "golang", "ruby", "rubydevkit"}
-		if err := fixSystemPathConflicts(conflictDirNames); err != nil {
+		if err := fixSystemPathConflicts(conflictDirNames, false); err != nil {
 			logger.Info("     ⚠ Auto-fix failed: %v", err)
 			logger.Info("     → Please manually run: pvm setup")
 		} else {
@@ -268,8 +268,6 @@ func writeScopedVersion(rt, ver string, scopeUser bool) error {
 	logger.Info("  ✓ set %s = %s in %s", rt, displayVer, path)
 	return nil
 }
-
-
 
 // runUseCurrent 无参数时显示当前目录生效的版本（类似 nvm use 无参数）
 func runUseCurrent() error {
