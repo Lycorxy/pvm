@@ -25,23 +25,147 @@ PVM 是一个 CLI 工具，语法为 `pvm <command> [arguments] [flags]`。
 
 | 命令 | 分组 | 说明 |
 | ---- | ---- | ---- |
-| `install, i` | 版本管理 | 安装运行时版本 |
-| `use` | 版本管理 | 设定用户/项目当前版本 |
-| `list, ls` | 版本管理 | 列出已安装版本 |
-| `list-remote, lr` | 版本管理 | 列出可安装的远程版本 |
-| `remove, rm` | 版本管理 | 卸载版本 / 移除配置 |
-| `current` | 版本管理 | 显示当前生效版本 |
-| `which` | 版本管理 | 打印命令的真实路径 |
-| `where` | 版本管理 | 打印运行时的安装目录 |
-| `config, cfg` | 项目与系统 | 管理 `.pvmrc` |
-| `setup` | 项目与系统 | 首次初始化 |
-| `setup-path` | 项目与系统 | 检查并修复 PATH |
-| `doctor` | 项目与系统 | 检查安装健康度 |
-| `validate` | 项目与系统 | 校验 shim 与版本一致性 |
-| `diagnostics` | 项目与系统 | 某运行时的详细诊断 |
-| `self-update` | 项目与系统 | 升级 PVM 自身 |
-| `uninstall` | 项目与系统 | 卸载 PVM |
+| [`install, i`](/commands/install) | 版本管理 | 安装运行时版本 |
+| [`use`](/commands/use) | 版本管理 | 设定用户/项目当前版本 |
+| [`list, ls`](/commands/list) | 版本管理 | 列出已安装版本 |
+| [`list-remote, lr`](/commands/list) | 版本管理 | 列出可安装的远程版本 |
+| [`remove, rm`](/commands/remove) | 版本管理 | 卸载版本 / 移除配置 |
+| [`current`](/commands/current) | 版本管理 | 显示当前生效版本 |
+| [`which`](/commands/current) | 版本管理 | 打印命令的真实路径 |
+| [`where`](/commands/current) | 版本管理 | 打印运行时的安装目录 |
+| [`config, cfg`](/commands/config) | 项目与系统 | 管理 `.pvmrc` |
+| [`run`](#流水线pvmyaml) | 项目与系统 | 执行 `pvm.yaml` 声明的流水线 `[--list\|--dry-run]` |
+| [`pack`](#二进制打包pvm-pack) | 二进制打包 | 默认跨平台全量打包为单可执行文件；`--platform` 指定单目标（Node≥20 SEA / Python PyInstaller / go build） |
+| [`setup`](/commands/setup) | 项目与系统 | 首次初始化 |
+| [`setup-path`](/commands/setup) | 项目与系统 | 检查并修复 PATH |
+| [`doctor`](/commands/setup) | 项目与系统 | 检查安装健康度 |
+| [`validate`](/commands/doctor-more) | 项目与系统 | 校验 shim 与版本一致性 |
+| [`diagnostics`](/commands/doctor-more) | 项目与系统 | 某运行时的详细诊断 |
+| [`self-update`](/commands/self) | 项目与系统 | 升级 PVM 自身 |
+| [`uninstall`](/commands/self) | 项目与系统 | 卸载 PVM |
 | `version` | 其它 | 显示 PVM 版本 |
+
+## 流水线（pvm.yaml）
+
+项目根目录放一个 **`pvm.yaml`**（人手写，pvm 只读），声明构建 / 打包 / 发布流水线：
+嵌套键即流水线名，命令列表即步骤，`@` 组合引用，`&` 后台并行，`pvm run` 一条命令跑完全程。
+
+```yaml
+# pvm.yaml
+name: my-app                 # 项目名（可选）：--list 与执行时显示，供人与模型快速识别
+dev:                         # 开发启动（推荐命名约定：dev:web 前端 / dev:api 后端 / dev:all 一起）
+  web:
+    - cd web
+    - pnpm i
+    - npm run dev
+  api:
+    - go run ./cmd/api
+  all:
+    - "&@dev:web"            # 后台启动前端（dev 服务器不阻塞）
+    - "&@dev:api"            # 后台启动后端
+build:
+  pro:
+    - cd web
+    - pnpm i
+    - npm run build:pro
+    - cd dist
+    - zip -q -r ./release-pro.zip ./*
+pkg:
+  go:
+    pro:
+      - pvm pack go --entry . --output dist/app
+release:
+  pro:
+    - "@build:pro"
+    - "@pkg:go:pro"
+```
+
+| 规则 | 说明 |
+| ---- | ---- |
+| 命名 | 嵌套键用 `:` 连接：2 层 = `动作:环境`（`build:pro`），3 层 = `动作:目标:环境`（`pkg:go:pro`）；名字只做精确匹配 |
+| 步骤 | 叶子为命令列表（多步）或单个字符串（单步简写），**原样执行** |
+| 引用 | `"@名字"` 引用其他流水线，递归展开，循环引用报错（`@` 是 YAML 保留字符，须加引号） |
+| 后台并行 | `"&名字"` 或 `"&@名字"` 后台并行执行（用于 dev 服务器），末尾等待全部后台作业；任一失败即报错（`&` 同样须加引号） |
+| 执行 | 同一 shell 会话顺序执行；工作目录 = `pvm.yaml` 所在目录（`cd` 相对它解析，效果保留），任一步失败即停 |
+| 查找 | 从当前目录**向上**查找最近的 `pvm.yaml`（`pvm.yml` 兜底）；monorepo 根目录放一个即可，子目录直接跑 |
+
+```bash
+pvm run --list                 # 列出项目名与所有流水线
+pvm run dev:web                # 启动前端
+pvm run dev:api                # 启动后端
+pvm run dev:all                # 前后端一起启动（并行，Ctrl+C 全部停止）
+pvm run release:pro            # 一条命令：构建 → 打包 → 发布
+pvm run release:pro --dry-run  # 只打印执行计划，不执行
+```
+
+前置行为：执行前自动安装并激活 `.pvmrc` 声明的运行时版本（shim 按声明解析），**无需写环境安装命令**。
+
+:::tip 给 AI / 模型使用
+模型接手项目时先读 `pvm.yaml`：`name` 识别项目，`dev:web` / `dev:api` / `dev:all`
+即前端、后端、一起启动的入口——**一条 `pvm run dev:all` 直接启动整套环境**，
+无需逐条执行 `pnpm i`、`npm run dev` 等命令。构建 / 发布同理（`build:*` / `pkg:*` / `release:*`）。
+:::
+
+:::info 为什么不放 `.pvmrc` / `package.json`
+`.pvmrc` 是 pvm 自动读写的版本声明文件（`pvm use --local` 会整体重写它），手写内容会被抹掉；
+`package.json` 属于 npm，Go / Python 后端项目没有。`pvm.yaml` 与运行时无关，前后端通用，
+前端任务直接引用 `npm run xxx`，不重复定义。
+:::
+
+## 二进制打包（pvm pack）
+
+把项目打包为单可执行文件，走各运行时的官方 / 事实标准方案。
+**默认跨平台全量打包**，`--platform` 可只打指定目标：
+
+| 命令 | 方案 | 说明 |
+| ---- | ---- | ---- |
+| `pvm pack node --entry <main.js>` | 官方 SEA | 要求 Node ≥ 20；自动 esbuild bundle → 生成 blob → 逐平台注入；跨平台时自动下载各目标平台的官方 node 发行版作底座（缓存在 `~/.pvm/cache/pack-node/`，重复打包零下载）；macOS 目标自动去签名并 ad-hoc 重签 |
+| `pvm pack python --entry <main.py>` | PyInstaller `--onefile` | PyInstaller 缺失时自动安装到解析到的 pvm 托管 python 环境；**不支持交叉打包**（见下方说明） |
+| `pvm pack go [--entry <pkg>]` | `go build -trimpath -ldflags "-s -w"` | 交叉编译自动 `CGO_ENABLED=0` 静态产物 |
+
+### 目标平台（--platform）
+
+| 取值 | 行为 |
+| ---- | ---- |
+| 省略 / `all` | **跨平台全量**（默认）：`windows/amd64`、`linux/amd64`、`linux/arm64`、`darwin/amd64`、`darwin/arm64` |
+| `host` / `current` | 仅当前平台 |
+| `<os>/<arch>` | 只打一个目标（如 `linux/amd64`）；逗号分隔可一次指定多个（自动去重） |
+
+产物命名：
+
+- **多目标**时在 `--output` 扩展名前插入 `-<os>-<arch>`：`dist/app` → `dist/app-linux-amd64`、`dist/app-windows-amd64.exe`，互不覆盖
+- Windows 目标自动补 `.exe`；非 Windows 目标自动去掉误写的 `.exe`（跨平台产物不带后缀）
+
+通用参数：`--output <path>`（默认 `dist/<入口主干名>`）；node 另有 `--bundled <file>`（跳过 esbuild，使用预打包产物）与 `--official`（跨平台下载 node 发行版时强制官方源，默认国内镜像）。
+
+```bash
+pvm pack go --entry . --output dist/app                    # 5 平台全量
+pvm pack go --entry . --output dist/app --platform host    # 仅当前平台
+pvm pack go --entry . --output dist/app --platform linux/amd64,linux/arm64   # 指定多目标
+pvm pack node --entry src/main.js                          # 各平台 node 发行版自动下载
+```
+
+:::warning PyInstaller 不支持交叉打包
+`pvm pack python` 默认（跨平台全量）实际仅产出**当前平台**的产物；显式指定非当前平台的
+`--platform` 会直接报错，避免产生"已打全平台"的错觉。需要多平台分发时，请在各目标平台
+分别执行（如 CI matrix）。
+:::
+
+在 `pvm.yaml` 中直接作为普通命令使用：
+
+```yaml
+pkg:
+  node:
+    pro:
+      - pvm pack node --entry src/main.js --output dist/app-pro   # 跨平台全量
+  go:
+    pro:
+      - pvm pack go --entry . --output dist/app --platform host   # 仅当前平台
+release:
+  pro:
+    - "@build:pro"
+    - "@pkg:go:pro"
+```
 
 :::info
 `pvm --help` 可随时打印完整用法；所有命令也支持 `--help`。

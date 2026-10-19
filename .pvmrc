@@ -1,0 +1,3 @@
+# pvm project runtime versions
+node 20.20.2
+pnpm 8.15.9

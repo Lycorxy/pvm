@@ -1,0 +1,32 @@
+# pvm-guard 触发与调度配置
+priority: 70
+auto-trigger: true
+trigger-keywords:
+  - pvm 环境
+  - pvm 检测
+  - pvm 检查
+  - pvm 装不上
+  - nvm 冲突
+  - 安装 pvm
+  - 卸载 pvm
+  - pvm.yaml
+  - pvmrc
+  - pvm 怎么用
+  - pvm 出问题
+  - pvm 修复
+depends-on: []
+mutual-exclude: []
+require-tools:
+  - execute_command
+  - read_file
+  - replace_in_file
+load-strategy: lazy
+unload-after-run: true
+max-duration: 300
+trigger-weight:
+  pvm 环境: 95
+  nvm 冲突: 95
+  安装 pvm: 90
+  pvm.yaml: 85
+  pvmrc: 85
+  pvm 出问题: 80

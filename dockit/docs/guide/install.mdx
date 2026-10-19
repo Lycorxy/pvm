@@ -43,9 +43,9 @@ curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.
 
 脚本行为：自动识别 Intel / Apple Silicon（Rosetta 终端也按原生 ARM64 处理）→ 安装到 `~/.pvm/bin/pvm` → 写入 `~/.zshrc`（bash 用户写 `.bashrc`，文件不存在会自动创建）。
 
-::::warning 注意
+:::warning 注意
 macOS 上**不要**下载裸二进制后双击打开——它是命令行程序，双击会被文本编辑器当成文本报错。请始终使用上面的终端命令安装。
-::::
+:::
 
 ### Linux（终端）
 
@@ -75,11 +75,11 @@ curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.
 
 PVM 是**单一二进制**（不含额外的 shim 文件）。从 Release 页下载对应平台的文件：
 
-::::warning macOS / Linux 用户注意
+:::warning macOS / Linux 用户注意
 下载的是命令行程序，**不要双击打开**（会被文本编辑器当成文本报错）。
 请在终端中完成安装，见下方步骤。不确定架构时运行 `uname -m`：
 `x86_64` 选 amd64，`arm64`/`aarch64` 选 arm64（Apple Silicon 的 Rosetta 终端也选 arm64）。
-::::
+:::
 
 **国内用户（Gitee 镜像）：**
 

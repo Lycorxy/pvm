@@ -1,11 +1,10 @@
 # PVM 环境管理 Skill 配置
-# 未装 PVM → 检测环境安装匹配版本；已装 → 直接执行 pvm 命令
+# 安装请求优先触发自动 OS/CPU 检测与匹配 Release 安装流程
 
 # ── 触发与优先级 ──
-priority: 90
+priority: 85
 auto-trigger: true
 trigger-keywords:
-    # 安装 PVM
     - pvm
     - 安装pvm
     - 帮我安装pvm
@@ -14,32 +13,19 @@ trigger-keywords:
     - linux安装pvm
     - windows安装pvm
     - install pvm
-    # pvm 命令
-    - pvm use
-    - pvm install
-    - pvm命令
-    - pvm更新
-    - pvm卸载
-    # 环境 / 版本问题（先调用本 skill）
-    - 环境问题
-    - 环境诊断
-    - 诊断环境
     - 环境隔离
+    - 切换版本
+    - pvm use
     - 需要python环境
     - 需要node环境
     - 需要运行时
-    - 切换版本
-    - 版本管理器
-    - 多语言版本
-    - node版本
-    - python版本
-    - 运行时版本
-    - 版本冲突
-    # 迁移
     - 卸载nvm
     - 清理nvm
     - 迁移到pvm
-    # pnpm / lockfile
+    - pvm更新
+    - pvm卸载
+    - 版本管理器
+    - 多语言版本
     - pnpm版本
     - 锁定pnpm
     - pnpm依赖冲突
@@ -50,9 +36,18 @@ trigger-keywords:
     - 锁死版本
     - 锁版本
     - version lock
+    - 合并冲突
+    - 冲突处理
+    - 从远程替换
+    - 彻底卸载
+    - 卸载软件
+    - 清理依赖
+    - 重置依赖
+    - 环境诊断
+    - 诊断环境
+    - 端口冲突
     - npmrc配置
     - 配置npmrc
-    # 权限 / 占用错误
     - EPERM
     - ERR_PNPM_EPERM
     - EACCES
@@ -60,13 +55,17 @@ trigger-keywords:
     - pnpm报错
     - pnpm安装失败
     - esbuild占用
+    - 文件被占用
     - operation not permitted
     - unlink
-    - 端口冲突
+    - 管理员权限
+    - 权限不足
+    - 权限错误
 
 # ── 依赖关系 ──
-# GateLoop harness 模式：规则由 anchor.config.json 的 reads 内联，无外部 skill 依赖
-depends-on: []
+# 🔒 depends-on 必须包含 specflow-rules-engine（规则注入引擎）
+depends-on:
+    - specflow-rules-engine
 mutual-exclude: []
 require-tools: [read_file, execute_command, search_content]
 
@@ -84,33 +83,32 @@ trigger-weight:
     linux安装pvm: 96
     windows安装pvm: 96
     install pvm: 95
-    pvm use: 92
-    pvm install: 92
-    pvm命令: 92
-    pvm更新: 90
-    pvm卸载: 90
-    环境问题: 85
+    pvm use: 90
     需要python环境: 85
     需要node环境: 85
-    node版本: 82
-    python版本: 82
-    运行时版本: 82
-    版本冲突: 82
     卸载nvm: 88
-    环境诊断: 85
-    诊断环境: 85
-    环境隔离: 80
-    切换版本: 78
-    版本管理器: 65
-    多语言版本: 60
     锁定pnpm: 82
     pnpm依赖冲突: 80
+    环境隔离: 80
+    切换版本: 75
+    版本管理器: 60
+    多语言版本: 55
     lock文件冲突: 90
     lockfile冲突: 90
     锁文件冲突: 90
     锁死版本: 88
     锁版本: 88
     version lock: 88
+    合并冲突: 85
+    冲突处理: 85
+    从远程替换: 85
+    彻底卸载: 88
+    卸载软件: 88
+    清理依赖: 80
+    重置依赖: 80
+    环境诊断: 85
+    诊断环境: 85
+    端口冲突: 80
     npmrc配置: 80
     配置npmrc: 80
     EPERM: 92
@@ -120,15 +118,18 @@ trigger-weight:
     pnpm报错: 85
     pnpm安装失败: 88
     esbuild占用: 85
+    文件被占用: 75
     operation not permitted: 92
     unlink: 88
-    端口冲突: 75
+    管理员权限: 80
+    权限不足: 85
+    权限错误: 85
 
 # ── MCP 能力声明（编排器探测用，skill 不直接读取）──
 mcp-capabilities: []
 
 # ── 数据契约（step-contracts）──
-# 本 skill 无 MCP 需求：环境数据由 scripts/detect-env.ps1/.sh 本地获取
+# 本 skill 无 MCP 需求，所有数据通过本地检测命令获取
 step-contracts: []
 
 # ── 记忆钩子（可选）──

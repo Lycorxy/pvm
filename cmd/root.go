@@ -13,7 +13,7 @@ import (
 )
 
 // Version 是 pvm 自身版本号（构建时可被 ldflags 覆盖）
-var Version = "0.0.1"
+var Version = "0.2.0"
 
 func Execute() error {
 	// 注册所有 runtime 插件
@@ -106,6 +106,10 @@ func Execute() error {
 		return runDiagnostics(args)
 	case "config", "cfg":
 		return runConfig(args)
+	case "run":
+		return runRun(args)
+	case "pack":
+		return runPack(args)
 	case "version", "-v", "--version":
 		fmt.Printf("pvm %s\n", Version)
 		return nil
@@ -141,6 +145,8 @@ System:
   setup                First-time setup (dirs, PATH, shims)
   setup-path           Check and fix PATH configuration (diagnose conflicts)
   config               Manage .pvmrc project config (no admin needed!)
+  run <name>           Run a pipeline from pvm.yaml [--list|--dry-run]
+  pack <node|python|go>  Pack into single executables for all platforms by default; --platform <os>/<arch> to pick one
   doctor               Check pvm installation health
   validate             Deep validation of shims & version consistency [--auto-fix]
   diagnostics <rt>     Detailed diagnostics for a specific runtime

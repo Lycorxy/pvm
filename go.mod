@@ -2,7 +2,10 @@ module github.com/pvm/pvm
 
 go 1.25.5
 
-require github.com/bodgit/sevenzip v1.6.4
+require (
+	github.com/bodgit/sevenzip v1.6.4
+	gopkg.in/yaml.v3 v3.0.1
+)
 
 require (
 	github.com/andybalholm/brotli v1.2.1 // indirect

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>锁版本、冻依赖、防漂移 —— pnpm 依赖管理安全三部曲</title>
+<style>
+  :root{
+    --bg:#0e1117;
+    --card:#161b22;
+    --card2:#1c2230;
+    --line:#30363d;
+    --txt:#e6edf3;
+    --muted:#8b949e;
+    --accent:#58a6ff;
+    --green:#3fb950;
+    --yellow:#d29922;
+    --red:#f85149;
+    --purple:#bc8cff;
+    --cyan:#39c5cf;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--txt);line-height:1.6;
+    padding:0 0 80px;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:0 24px}
+
+  /* Hero */
+  .hero{
+    text-align:center;padding:64px 24px 48px;
+    background:radial-gradient(ellipse at top,#1b2942 0%,var(--bg) 70%);
+    border-bottom:1px solid var(--line);
+  }
+  .hero h1{font-size:34px;font-weight:800;letter-spacing:1px;
+    background:linear-gradient(90deg,var(--accent),var(--purple),var(--cyan));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero .tag{margin-top:16px;color:var(--muted);font-size:16px}
+  .hero .tag code{color:var(--green);background:var(--card);padding:2px 8px;border-radius:6px}
+
+  h2.section{font-size:22px;margin:56px 0 8px;display:flex;align-items:center;gap:10px}
+  h2.section::before{content:"";width:4px;height:22px;background:var(--accent);border-radius:2px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+
+  /* danger cards */
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .dcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;position:relative;overflow:hidden}
+  .dcard::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--red)}
+  .dcard .num{font-size:13px;color:var(--red);font-weight:700}
+  .dcard h3{font-size:16px;margin:6px 0 10px}
+  .dcard p{font-size:13px;color:var(--muted)}
+  .dcard code{display:block;background:#0d1117;border:1px solid var(--line);border-radius:6px;
+    padding:6px 8px;font-size:12px;color:var(--yellow);margin-top:8px;white-space:nowrap;overflow-x:auto}
+
+  /* Trilogy flow */
+  .flow{display:flex;align-items:stretch;gap:0;margin-top:10px}
+  .step{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;position:relative}
+  .step .badge{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:16px;margin-bottom:12px}
+  .s1 .badge{background:rgba(88,166,255,.15);color:var(--accent)}
+  .s2 .badge{background:rgba(188,140,255,.15);color:var(--purple)}
+  .s3 .badge{background:rgba(63,185,80,.15);color:var(--green)}
+  .step h3{font-size:16px;margin-bottom:6px}
+  .step .file{color:var(--cyan);font-size:13px;font-weight:600;margin-bottom:8px}
+  .step p{font-size:13px;color:var(--muted)}
+  .arrow{display:flex;align-items:center;color:var(--muted);font-size:24px;padding:0 4px}
+  .step .cmd{display:block;background:#0d1117;border:1px solid var(--line);border-radius:6px;
+    padding:6px 8px;font-size:11px;color:var(--yellow);margin-top:10px;white-space:pre-wrap}
+
+  /* Security triangle */
+  .tri-wrap{display:flex;gap:32px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:10px}
+  .tri-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;width:260px}
+  .tri-card h4{color:var(--cyan);font-size:15px;margin-bottom:6px;font-family:monospace}
+  .tri-card .t{font-size:13px;color:var(--txt);margin-bottom:4px}
+  .tri-card .d{font-size:12px;color:var(--muted)}
+
+  /* CI flow */
+  .pipeline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .node{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:14px 18px;text-align:center;min-width:120px}
+  .node .t{font-size:13px;font-weight:600}
+  .node .s{font-size:11px;color:var(--muted);margin-top:4px}
+  .node.ok{border-color:var(--green)}
+  .node.ok .t{color:var(--green)}
+  .node.bad{border-color:var(--red)}
+  .node.bad .t{color:var(--red)}
+  .pconn{color:var(--muted);font-size:20px}
+
+  /* table */
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;background:var(--card)}
+  td code{color:var(--cyan);font-size:13px}
+  tr:hover td{background:var(--card)}
+
+  .checklist{list-style:none;margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .checklist li{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14px;display:flex;gap:10px;align-items:flex-start}
+  .checklist .ic{color:var(--green);font-weight:800}
+
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:60px;padding-top:24px;border-top:1px solid var(--line)}
+  footer b{color:var(--txt)}
+
+  @media(max-width:760px){
+    .grid3{grid-template-columns:1fr}
+    .flow{flex-direction:column;gap:14px}
+    .arrow{transform:rotate(90deg);justify-content:center;padding:4px 0}
+    .checklist{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>锁版本 · 冻依赖 · 防漂移</h1>
+  <p class="tag">pnpm 依赖管理安全三部曲 —— 让项目 <code>今天能跑 → 明天能跑</code></p>
+</div>
+
+<div class="wrap">
+
+  <!-- 危险案例 -->
+  <h2 class="section">一、"在我机器上能跑" 为什么最危险</h2>
+  <p class="sub">三个真实案例，看依赖是如何悄悄漂移的</p>
+  <div class="grid3">
+    <div class="dcard">
+      <span class="num">案例 1</span>
+      <h3>隐性版本升级</h3>
+      <p>^ 符号允许装 4.x 最新版，新队友 clone 装了更新的补丁，引入了你没测过的行为。</p>
+      <code>"lodash": "^4.17.20"</code>
+    </div>
+    <div class="dcard">
+      <span class="num">案例 2</span>
+      <h3>lockfile 漂移</h3>
+      <p>同一个 lockfile，不同 pnpm 版本可能解析出不同的依赖树，CI 解析出不一致的子依赖。</p>
+      <code>some-sub-dep: 1.0.0</code>
+    </div>
+    <div class="dcard">
+      <span class="num">案例 3</span>
+      <h3>peer dependency 地狱</h3>
+      <p>版本不兼容报错还算好，更可怕的是不报错但运行时表现异常，难以定位。</p>
+      <code>peer react@"^17"</code>
+    </div>
+  </div>
+
+  <!-- 三部曲 -->
+  <h2 class="section">二、三步锁死，让依赖永不漂移</h2>
+  <p class="sub">从工具链 → 策略 → 真相，逐层锁死</p>
+  <div class="flow">
+    <div class="step s1">
+      <div class="badge">1</div>
+      <h3>锁 pnpm 版本</h3>
+      <div class="file">.pvmrc</div>
+      <p>不同人用不同 pnpm，lockfile 解析结果可能不同。用 PVM 锁死版本，cd 进项目自动锁定。</p>
+      <span class="cmd">pvm use pnpm@9 --local
+# .pvmrc → pnpm = 9.15.0</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step s2">
+      <div class="badge">2</div>
+      <h3>冻依赖策略</h3>
+      <div class="file">.npmrc</div>
+      <p>^ ~ * 是漂移根源。配置精确版本 + 冻结 lockfile + 自动装 peer，从策略上堵死。</p>
+      <span class="cmd">save-prefix=""
+prefer-frozen-lockfile=true
+resolution-mode=time-based</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step s3">
+      <div class="badge">3</div>
+      <h3>正确使用 lockfile</h3>
+      <div class="file">pnpm-lock.yaml</div>
+      <p>依赖的唯一真相来源。CI 用 --frozen-lockfile 严格模式，不一致直接报错拦截上线。</p>
+      <span class="cmd">pnpm install
+pnpm install --frozen-lockfile</span>
+    </div>
+  </div>
+
+  <!-- 安全三角 -->
+  <h2 class="section">三、安全三角：提交到 git 的三个文件</h2>
+  <p class="sub">三者构成依赖安全的等边三角形，缺一不可</p>
+  <div class="tri-wrap">
+    <svg width="220" height="200" viewBox="0 0 220 200">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#58a6ff"/><stop offset="50%" stop-color="#bc8cff"/><stop offset="100%" stop-color="#3fb950"/>
+        </linearGradient>
+      </defs>
+      <polygon points="110,20 200,170 20,170" fill="none" stroke="url(#g)" stroke-width="2.5"/>
+      <circle cx="110" cy="20" r="5" fill="#58a6ff"/>
+      <circle cx="200" cy="170" r="5" fill="#bc8cff"/>
+      <circle cx="20" cy="170" r="5" fill="#3fb950"/>
+      <text x="110" y="10" fill="#58a6ff" font-size="12" text-anchor="middle" font-family="monospace">.pvmrc</text>
+      <text x="208" y="190" fill="#bc8cff" font-size="12" text-anchor="middle" font-family="monospace">.npmrc</text>
+      <text x="12" y="190" fill="#3fb950" font-size="12" text-anchor="middle" font-family="monospace">lockfile</text>
+    </svg>
+    <div>
+      <div class="tri-card">
+        <h4>.pvmrc</h4>
+        <div class="t">锁定工具链版本</div>
+        <div class="d">node / pnpm 版本，PVM 自动读取 → pvm use</div>
+      </div>
+      <div style="height:12px"></div>
+      <div class="tri-card">
+        <h4>.npmrc</h4>
+        <div class="t">锁定安装策略</div>
+        <div class="d">精确版本 + 冻结 lockfile，堵死语义化漂移</div>
+      </div>
+      <div style="height:12px"></div>
+      <div class="tri-card">
+        <h4>pnpm-lock.yaml</h4>
+        <div class="t">依赖唯一真相</div>
+        <div class="d">必须提交、禁止手编、冲突用脚本解</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CI 流水线 -->
+  <h2 class="section">四、CI/CD 流水线：frozen 模式拦截漂移</h2>
+  <p class="sub">lockfile 与 package.json 不一致 → 直接报错，绝不静默放行</p>
+  <div class="pipeline">
+    <div class="node">
+      <div class="t">📦 pvm use</div>
+      <div class="s">读取 .pvmrc 锁定版本</div>
+    </div>
+    <div class="pconn">→</div>
+    <div class="node">
+      <div class="t">📥 pnpm install</div>
+      <div class="s">本地开发（尊重 lockfile）</div>
+    </div>
+    <div class="pconn">→</div>
+    <div class="node ok">
+      <div class="t">🔒 --frozen-lockfile</div>
+      <div class="s">CI 严格模式</div>
+    </div>
+    <div class="pconn">→</div>
+    <div class="node bad">
+      <div class="t">🚫 不一致即报错</div>
+      <div class="s">拦截上线</div>
+    </div>
+  </div>
+  <table>
+    <tr><th>场景</th><th><code>pnpm install</code></th><th><code>--frozen-lockfile</code></th></tr>
+    <tr><td>lockfile 与 package.json 一致</td><td>✅ 正常安装</td><td>✅ 正常安装</td></tr>
+    <tr><td>lockfile 与 package.json 不一致</td><td>⚠️ 静默更新 lockfile</td><td>❌ 直接报错</td></tr>
+    <tr><td>某个依赖有新版本</td><td>⚠️ 可能更新</td><td>❌ 严格使用 lockfile 版本</td></tr>
+    <tr><td>适合场景</td><td>本地开发</td><td><b>CI / 生产部署</b></td></tr>
+  </table>
+
+  <!-- 总结 -->
+  <h2 class="section">五、三层锁死，本质就三件事</h2>
+  <p class="sub">工具链 → 策略 → 依赖，全部锁死后依赖永不漂移</p>
+  <table>
+    <tr><th>层次</th><th>锁定目标</th><th>工具</th><th>配置文件</th></tr>
+    <tr><td><b>工具链</b></td><td>pnpm 版本</td><td>PVM</td><td><code>.pvmrc</code></td></tr>
+    <tr><td><b>策略</b></td><td>安装行为</td><td>.npmrc</td><td><code>~/.npmrc</code></td></tr>
+    <tr><td><b>依赖</b></td><td>每个包精确版本</td><td>lockfile</td><td><code>pnpm-lock.yaml</code></td></tr>
+  </table>
+
+  <ul class="checklist">
+    <li><span class="ic">✓</span><span>今天能跑 → 明天能跑</span></li>
+    <li><span class="ic">✓</span><span>你的电脑能跑 → 队友电脑能跑</span></li>
+    <li><span class="ic">✓</span><span>本地能跑 → CI 能跑</span></li>
+    <li><span class="ic">✓</span><span>"在我机器上能跑" 从借口变成陈述</span></li>
+  </ul>
+
+</div>
+
+<footer>
+  <p><b>锁版本 · 冻依赖 · 防漂移</b> —— pnpm 依赖管理安全三部曲</p>
+  <p>由 PVM Env Manager Skill 驱动 · 配套文章 npm-dependency-security.md</p>
+</footer>
+
+</body>
+</html>

@@ -4,44 +4,6 @@
 
 ---
 
-## 环境检测（判断该执行哪个安装）
-
-**脚本：** `detect-env.ps1` / `detect-env.sh`
-
-自动检测当前操作系统、CPU 架构（含 Rosetta 识别原生 Apple Silicon）、默认 shell、是否已安装 PVM，并输出匹配的 Release 资产和推荐安装命令。
-
-```powershell
-# Windows
-& "D:\gitfile\pvm\.codebuddy\skills\pvm-env-manager\scripts\detect-env.ps1"
-```
-
-```bash
-# macOS / Linux（Git Bash 下会识别为 Windows 并推荐 PowerShell 安装器）
-bash .codebuddy/skills/pvm-env-manager/scripts/detect-env.sh
-```
-
-输出示例：
-
-```text
-os=darwin
-arch=arm64
-rosetta=false
-shell=zsh
-supported=true
-pvm_installed=false
-asset=pvm-darwin-arm64
-installer=install-pvm.sh
-
-Detected darwin/arm64. Recommended install:
-  bash "<SKILL_ROOT>/install-pvm.sh"
-Or the one-line remote installer:
-  curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh | bash
-```
-
-退出码：`0` 环境受支持（无论是否已安装），`1` 无对应 Release，`2` 参数错误。已安装时会提示用 `pvm self-update` 升级而不是重装。
-
----
-
 ## 自动安装 PVM
 
 **脚本：** `install-pvm.ps1` / `install-pvm.sh`

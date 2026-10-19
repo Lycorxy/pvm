@@ -1,0 +1,13 @@
+---
+alwaysApply: true
+---
+# pvm-guard 强制规则
+
+- 一切以 pvm 为主：用户确定使用 pvm 后，环境问题一律修复 pvm（setup-path/setup/重装），
+  禁止建议改用 nvm/volta/fnm 等其他工具或"绕开 pvm"。
+- 检测、修复、配置验证必须走 `scripts/pvm-harness.mjs`，禁止自创检测逻辑或凭感觉判断环境状态。
+- 播报精简：命令 → 成功/失败（原因）→ 下一步；禁止大段原理说明与长日志粘贴。
+- 修改 pvm.yaml 或 .pvmrc 后必须执行 `config validate`，失败必须修正后重验。
+- 修复后必须复跑 `check` 形成闭环（最多 3 轮），全绿才能宣布环境就绪。
+- PATH 类修复完成后必须提示用户新开终端（或完全重启 IDE）后再验证。
+- 回答 pvm 用法前先查 references/pvm-guide.md，禁止编造不存在的命令或参数。

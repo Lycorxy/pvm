@@ -1,0 +1,194 @@
+{
+  "name": "code-env",
+  "description": "环境检测流程 GateLoop harness — env-check(检测git+pvm，未装则装，确保pvm可用)→repo-setup(按git地址拉主分支+创建修复缺陷分支)→toolchain(pvm安装node/pnpm，检测go/python需求一并安装)→deps-install(pnpm i，模型判断单仓/monorepo逐目录安装)→verify-run(启动前端项目验证可正常执行)。自包含可分发：pvm 脚本/命令手册在本 skill 内（scripts/ + references/）；若同级存在 pvm / flowcli skill 则以其为增强。",
+  "scratchDir": ".specflow/scratch",
+  "scratchGcHours": 72,
+  "maxAttempts": 5,
+  "anchors": [
+    {
+      "id": "env-check",
+      "name": "环境检测与安装（git + pvm）",
+      "brief": "检测当前项目环境并确保基础工具就绪：① git：跑 git --version，已支持则不操作（记录版本）；未装则按平台安装（Windows 装 Git for Windows）并验证。② pvm：跑 ${skillDir}/scripts/detect-env.ps1（Windows）或 ${skillDir}/scripts/detect-env.sh（macOS/Linux/Git Bash；若同级 ../pvm skill 存在则优先用 ${skillDir}/../pvm/scripts/），以脚本输出为准（os/arch/pvm_installed/pvm_version，禁止自行推断）；pvm_installed=true 跳过安装；false 则执行 ${skillDir}/scripts/install-pvm.ps1|.sh 安装（Gitee 优先回退 GitHub），PATH 未刷新用绝对路径 ~/.pvm/bin/pvm 验证。③ 产出 env-report.json（os/arch/git{installed,version,action}/pvm{installed,version,action}）。引擎 custom 重跑 git+pvm 版本命令 exit 0 才推进（路径1：脚本 100% 准确）。规则由 reads 内联。",
+      "reads": ["RULE.mdc"],
+      "produces": [".specflow/context/env-report.json"],
+      "emits": ["envReport"],
+      "verify": {
+        "schema": {
+          "type": "object",
+          "required": ["os", "arch", "git", "pvm"],
+          "properties": {
+            "git": {
+              "type": "object",
+              "required": ["installed", "version", "action"]
+            },
+            "pvm": {
+              "type": "object",
+              "required": ["installed", "version", "action"]
+            }
+          }
+        },
+        "producesFresh": true,
+        "custom": [
+          "node ${skillDir}/scripts/check-env.mjs --phase env --report .specflow/context/env-report.json"
+        ]
+      }
+    },
+    {
+      "id": "repo-setup",
+      "name": "拉取主分支 + 创建修复缺陷分支",
+      "brief": "根据用户给的 git 地址准备代码工作区：① 拉取主分支代码：本地已存在仓库则 git fetch + checkout 主分支（master/main 以远端默认为准）+ pull；不存在则 clone（默认 clone 到当前工作区 ./<仓库名>，用户指定目录则从其指定）。② 从主分支创建修复缺陷分支：命名按团队规范（默认 fix/<issue 或缺陷简述>），禁止在主分支直接改动。③ gitflow 规范场景（版本分支/MR/工蜂流程）：若同级存在 ${skillDir}/../flowcli skill，必须先查其 references/gitflow-guide.md 确认命令与前置条件；不存在则用原生 git 命令 + 团队分支规范，禁止凭记忆拼工蜂/gitflow 专有命令。④ 确认分支干净可开发（branch --show-current = 新分支）。产出 repo-report.json（repoPath 用绝对路径/remoteUrl/mainBranch/branch/baseCommit）。引擎 custom 校验仓库分支状态（路径1）。",
+      "consumes": ["envReport"],
+      "produces": [".specflow/context/repo-report.json"],
+      "emits": ["repoReport"],
+      "verify": {
+        "schema": {
+          "type": "object",
+          "required": ["repoPath", "remoteUrl", "mainBranch", "branch"],
+          "properties": {
+            "repoPath": { "type": "string" },
+            "remoteUrl": { "type": "string" },
+            "mainBranch": { "type": "string" },
+            "branch": { "type": "string" }
+          }
+        },
+        "producesFresh": true,
+        "custom": [
+          "node ${skillDir}/scripts/check-env.mjs --phase repo --report .specflow/context/repo-report.json"
+        ]
+      }
+    },
+    {
+      "id": "toolchain",
+      "name": "运行时安装（node/pnpm + go/python 按需）",
+      "brief": "在仓库内安装所需运行时（pvm 命令一律以 ${skillDir}/references/pvm-commands.md 为准（同级 ../pvm skill 存在则以其 references 为准），禁止臆造）：① 检测语言需求：package.json → node+pnpm（pnpm 版本优先看 packageManager 字段）；go.mod → go；pyproject.toml/requirements.txt → python。② pvm install <rt>@<version> && pvm use <rt>@<version> 逐个安装并生效（node 项目锁 pnpm：pvm use pnpm@<v> --local，EPERM 报错用 ${skillDir}/scripts/fix-pnpm-eperm.*）。③ 逐个验证 node -v / pnpm -v / go version / python --version 正常输出。产出 toolchain-report.json（runtimes[{name,version,source}]，source=pvm|system）。引擎 custom 重跑全部版本命令 exit 0 + 版本与声明一致才推进（路径1）+ review 核对语言需求识别无遗漏（路径2）。",
+      "consumes": ["repoReport"],
+      "produces": [".specflow/context/toolchain-report.json"],
+      "emits": ["toolchainReport"],
+      "verify": {
+        "schema": {
+          "type": "object",
+          "required": ["runtimes"],
+          "properties": {
+            "runtimes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "version", "source"]
+              }
+            }
+          }
+        },
+        "producesFresh": true,
+        "custom": [
+          "node ${skillDir}/scripts/check-env.mjs --phase toolchain --report .specflow/context/toolchain-report.json"
+        ],
+        "review": {
+          "output": ".specflow/context/toolchain-review.json",
+          "requireEvidence": true,
+          "checklist": [
+            {
+              "id": "runtime-coverage",
+              "rule": "语言需求识别完整：package.json/go.mod/pyproject.toml/requirements.txt 逐个检查，需要的运行时（node/pnpm/go/python）全部安装，无遗漏（evidence 引用仓库文件路径）",
+              "mode": "model"
+            },
+            {
+              "id": "pvm-usage",
+              "rule": "运行时安装/切换全部通过 pvm 命令完成（以 pvm-commands.md 为准），未绕过 pvm 手动下载、未用错版本",
+              "mode": "model"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "deps-install",
+      "name": "依赖安装（pnpm i，单仓/monorepo 识别）",
+      "brief": "执行 pnpm i 安装依赖（模型判断仓库形态）：① single 单仓：仓库根目录 pnpm i 一次。② monorepo（pnpm-workspace.yaml 存在）：根目录 pnpm i 即可（workspace 装全部子包）。③ multi-repo 散仓（无 workspace 但多个子目录各有 package.json，如前后端分离）：逐个需要运行的子目录 pnpm i（只装需要构建运行的，文档/示例目录跳过并说明理由）。④ 每处安装 exit 0 才算成功。产出 deps-report.json（repoType: single|monorepo|multi-repo，installs[{dir,command,ok}]，dir 用绝对路径或相对仓库根路径，供引擎校验 node_modules）。引擎 custom 校验每个 installs[].dir 下 node_modules 存在（路径1）+ review 核对仓库形态判断与覆盖完整性（路径2）。",
+      "consumes": ["toolchainReport"],
+      "produces": [".specflow/context/deps-report.json"],
+      "emits": ["depsReport"],
+      "verify": {
+        "schema": {
+          "type": "object",
+          "required": ["repoType", "installs"],
+          "properties": {
+            "repoType": { "type": "string" },
+            "installs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["dir", "command", "ok"]
+              }
+            }
+          }
+        },
+        "producesFresh": true,
+        "custom": [
+          "node ${skillDir}/scripts/check-env.mjs --phase deps --report .specflow/context/deps-report.json"
+        ],
+        "review": {
+          "output": ".specflow/context/deps-review.json",
+          "requireEvidence": true,
+          "checklist": [
+            {
+              "id": "repo-type-correct",
+              "rule": "仓库形态判断正确：pnpm-workspace.yaml 存在→monorepo；多子 package.json 无 workspace→multi-repo；仅根 package.json→single（evidence 引用目录结构）",
+              "mode": "model"
+            },
+            {
+              "id": "deps-coverage",
+              "rule": "依赖覆盖完整：所有需要构建/运行的目录都已 pnpm i 且 exit 0，无漏装（跳过的目录有理由），node_modules 实际存在",
+              "mode": "model"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "verify-run",
+      "name": "启动验证（前端项目可正常执行）",
+      "brief": "启动验证项目可正常运行后停止服务：① 定启动命令：读目标项目 package.json scripts（dev/start 优先；无 dev 脚本用 build 构建验证兜底）。② 启动：后台启动 dev server，等待就绪（读输出中的端口/Local 地址）。③ 验证：HTTP 请求启动地址返回 <500，确认页面服务正常。④ 产出 run-report.json（command/mode:http|build/url/buildCommand/repoPath/evidence 含状态码与关键日志）——mode:http 时保持服务运行直到引擎 verify 通过（脚本会真实请求 url），通过后再停止服务并清理后台进程；mode:build 时 buildCommand 必须可重跑。引擎 custom 真实请求 url 或重跑构建（路径1）+ review 核对启动方式与证据（路径2）。全 anchor 完成 = 环境就绪，可交付开发。",
+      "consumes": ["depsReport"],
+      "produces": [".specflow/context/run-report.json"],
+      "emits": ["runReport"],
+      "verify": {
+        "schema": {
+          "type": "object",
+          "required": ["command", "mode", "evidence"],
+          "properties": {
+            "command": { "type": "string" },
+            "mode": { "type": "string" },
+            "url": { "type": "string" },
+            "buildCommand": { "type": "string" },
+            "repoPath": { "type": "string" }
+          }
+        },
+        "producesFresh": true,
+        "custom": [
+          "node ${skillDir}/scripts/check-env.mjs --phase run --report .specflow/context/run-report.json"
+        ],
+        "review": {
+          "output": ".specflow/context/run-review.json",
+          "requireEvidence": true,
+          "checklist": [
+            {
+              "id": "run-command-choice",
+              "rule": "启动命令选择合理：优先 package.json scripts 的 dev/start，无则 build 兜底（evidence 引用 scripts 内容）",
+              "mode": "model"
+            },
+            {
+              "id": "run-verification-evidence",
+              "rule": "验证证据充分：HTTP 状态码 <500 或构建成功输出，服务确实可访问/项目确实可执行（非仅进程启动无响应）",
+              "mode": "model"
+            },
+            {
+              "id": "cleanup-done",
+              "rule": "验证通过后已停止 dev server 并清理后台进程，无残留端口占用",
+              "mode": "model"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

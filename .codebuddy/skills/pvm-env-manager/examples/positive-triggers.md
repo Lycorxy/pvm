@@ -8,9 +8,6 @@
 4. "我需要 python 环境来跑这个脚本"
 5. "我电脑上有 nvm，想换成 pvm，帮我卸载 nvm"
 6. "这个项目需要 node 20，帮我切换版本"
-7. "pvm 怎么更新到最新版" — 已装则直接执行 `pvm self-update`，不重装
+7. "pvm 怎么更新到最新版"
 8. "帮我把这个项目的运行时版本锁定"
 9. "其他 skill 需要 python 3.12，先帮我装好环境"
-10. "我这台机器的 node 版本是多少" — 环境/版本问题先调本 skill：检测 → 已装 → `pvm current`
-11. "我的环境是不是装了 pvm" — 跑 `detect-env` 脚本给出结论，不手工推断
-12. "pvm 有哪些命令" — 命令集来自项目 `references/pvm-commands.md`

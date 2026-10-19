@@ -12,3 +12,7 @@ dockit
 *.exe
 pvm
 pvm-shim-*
+*.syso
+
+# Temp dirs from local testing
+.tmp-*/

@@ -1,0 +1,88 @@
+---
+description: 环境检测流程强制规则。当执行环境检测流程(code-env)、准备开发环境、拉码建分支、安装运行时与依赖、启动验证时必须遵守。包含：命令分工规矩、脚本优先、禁跳步、报告完备性。
+alwaysApply: true
+enabled: true
+---
+
+# 环境检测流程 — 强制规则
+
+## 铁律 0 — GateLoop 驱动 + 检测清单两条路径（最高优先级）
+
+本流程由 GateLoop 引擎驱动（5 anchor），每 anchor 推进由引擎 verify 判定：
+✓ 确定项（git/pvm/运行时版本/分支状态/node_modules/HTTP）→ 引擎 custom 脚本重跑，exit code 说了算，模型无法伪造
+✓ 理解项（仓库形态判断/语言需求识别/启动方式选择）→ review.model 逐条 verdict+evidence
+✗ 禁止自己声称"环境就绪"——引擎会重跑真实命令
+
+## 铁律 1 — 命令分工（pvm/git/流水线必须走对应 skill/CLI）
+
+```
+pvm 相关命令（检测/安装/切换运行时/doctor/锁 pnpm）：
+  → 脚本：${skillDir}/scripts/detect-env.* / install-pvm.* / fix-pnpm-eperm.*
+    （同级 ../pvm skill 存在时，以其 scripts/ 为准）
+  → 命令手册：${skillDir}/references/pvm-commands.md（同级 ../pvm 存在时以其 references 为准）
+  → 禁止凭记忆拼 pvm 命令，禁止绕过 pvm 手动下载运行时
+git/流水线相关命令：
+  → 同级 ../flowcli skill 存在时：先查其 references/（gitflow-guide/pipeline-guide）确认语法与前置条件；
+    flowcli 未安装且流水线场景需要 → 按 flowcli skill Step 0 安装（npm install -g @tencent/flowcli）
+  → 不存在 flowcli：普通原生 git（fetch/checkout/pull/branch）直接执行；
+    工蜂/gitflow 专有规范缺失指南时向用户确认，禁止凭记忆拼
+任何流程中需要 pvm/git/流水线相关命令 → 必须走对应 skill/CLI，不手搓
+```
+
+## 铁律 2 — 检测必须脚本化（禁止模型推断）
+
+```
+环境检测（os/arch/pvm_installed）：只能跑 ${skillDir}/scripts/detect-env.ps1|.sh，以脚本输出为准
+✗ 禁止凭经验猜架构（amd64/arm64 必须来自脚本输出）
+✗ 禁止跳过检测直接安装；禁止已安装还重复安装
+pvm_installed=true → 跳过安装直接用；升级用 pvm self-update，不重装
+```
+
+## 铁律 3 — 分支纪律
+
+```
+拉取主分支（master/main 以远端默认为准）→ 必须从主分支创建修复缺陷分支（fix/<issue 或缺陷简述>）
+✗ 禁止在主分支直接改动
+✗ 工蜂/gitflow 规范场景（版本分支/MR 流程）必须按 flowcli 指南执行（存在时）
+```
+
+## 铁律 4 — 运行时安装全走 pvm
+
+```
+语言需求检测：package.json→node+pnpm（pnpm 版本看 packageManager 字段）；
+go.mod→go；pyproject.toml/requirements.txt→python——逐个检查，无遗漏
+安装：pvm install <rt>@<version> && pvm use <rt>@<version>（node 项目锁 pnpm：pvm use pnpm@<v> --local）
+验证：node -v / pnpm -v / go version / python --version 逐个确认生效
+✗ 禁止跳过验证；EPERM 用 ${skillDir}/scripts/fix-pnpm-eperm.* 处理
+```
+
+## 铁律 5 — 依赖安装要判断仓库形态
+
+```
+pnpm-workspace.yaml 存在 → monorepo：根目录 pnpm i 一次（workspace 装全部子包）
+无 workspace 但多子目录各有 package.json → multi-repo：逐个需要运行的子目录 pnpm i
+仅根 package.json → single：根目录 pnpm i
+每处 exit 0 才算成功；node_modules 必须实际存在（引擎会检查）
+```
+
+## 铁律 6 — 启动验证真实可执行
+
+```
+优先 package.json scripts 的 dev/start；无则 build 构建验证兜底
+mode=http：dev server 保持运行到引擎 verify 通过（脚本真实请求 url，<500 才过），通过后立即停服务清理进程
+mode=build：buildCommand 必须可重跑（引擎会重跑）
+✗ 禁止只看"进程启动了"就当验证通过（要有 HTTP 状态码/构建输出证据）
+✗ 禁止验证后残留后台进程/端口占用
+```
+
+## 铁律 7 — 报告完备（schema+custom 卡死）
+
+```
+每个 anchor 产出报告 JSON（.specflow/context/xxx-report.json），字段按 anchor.config schema：
+env-report: os/arch/git{installed,version,action}/pvm{installed,version,action}
+repo-report: repoPath/remoteUrl/mainBranch/branch
+toolchain-report: runtimes[{name,version,source}]
+deps-report: repoType/installs[{dir,command,ok}]
+run-report: command/mode/url?/buildCommand?/evidence
+✗ 缺字段 = schema FAIL；报告与真实状态不符 = custom FAIL（引擎重跑真实命令核对）
+```

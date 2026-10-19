@@ -34,6 +34,12 @@ export const routerConfig: RouterExport = {
     ],
     '/commands': [
       {
+        text: '总览',
+        items: [
+          { text: '命令总览', link: '/commands/' },
+        ],
+      },
+      {
         text: '版本管理',
         items: [
           { text: 'install', link: '/commands/install' },

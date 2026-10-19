@@ -1,0 +1,46 @@
+# ── 触发与优先级 ──
+priority: 80
+auto-trigger: true
+trigger-keywords:
+    - 环境检测
+    - 准备环境
+    - 环境准备
+    - 检查环境
+    - 搭建开发环境
+    - 初始化项目环境
+    - 拉代码建分支
+    - 装依赖
+    - 环境搭建流程
+    - 修复缺陷环境准备
+
+# ── 依赖关系 ──
+# 自包含流程 skill：pvm 脚本/命令手册在 scripts/ + references/ 内
+# 同级 pvm / flowcli skill 存在时以其为增强（${skillDir}/../pvm、${skillDir}/../flowcli）
+depends-on: []
+mutual-exclude: []
+require-tools: [read_file, write_file, replace_in_file, search_content, search_file, execute_command, list_dir]
+
+# ── 生命周期 ──
+load-strategy: lazy
+unload-after-run: true
+max-duration: 1800
+max-token: 3000
+
+# ── GateLoop Harness 配置 ──
+# 流程由 anchor.config.json 驱动（5 anchor：env-check→repo-setup→toolchain→deps-install→verify-run）
+# 规则注入：GateLoop reads + rulesInline 内联 RULE.mdc
+# 门禁验证：custom（check-env.mjs 5 phase，exit code）+ review（关键节点模型逐条核对）
+# 断线恢复：nut gateloop status 随时查看当前 anchor
+
+# ── 触发权重 ──
+trigger-weight:
+    环境检测: 95
+    准备环境: 90
+    环境准备: 90
+    检查环境: 85
+    搭建开发环境: 90
+    初始化项目环境: 85
+    拉代码建分支: 85
+    装依赖: 70
+    环境搭建流程: 90
+    修复缺陷环境准备: 85

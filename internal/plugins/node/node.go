@@ -44,6 +44,9 @@ func (p *NodePlugin) GetDownloadInfo(version, goos, goarch string) (*registry.Ru
 		nodeArch = "x64"
 	case "386":
 		nodeArch = "x86"
+	case "arm":
+		// node 官方发行版的 32 位 ARM 命名是 armv7l（linux）
+		nodeArch = "armv7l"
 	}
 
 	ext := "tar.gz"

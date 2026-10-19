@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>依赖管理安全三部曲 · 主题图</title>
+<style>
+  :root{
+    --bg:#0a0e16;
+    --c1:#58a6ff;  /* 锁版本 */
+    --c2:#bc8cff;  /* 冻依赖 */
+    --c3:#3fb950;  /* 防漂移 */
+    --ink:#e6edf3;
+    --mut:#8b949e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(ellipse at 50% 40%,#13203a 0%,var(--bg) 70%);
+    color:var(--ink);
+    font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100vh;padding:28px 16px 40px;
+  }
+  .title{text-align:center;margin-bottom:6px}
+  .title h1{font-size:26px;font-weight:800;letter-spacing:2px;
+    background:linear-gradient(90deg,var(--c1),var(--c2),var(--c3));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .title p{color:var(--mut);font-size:13px;margin-top:6px}
+  .stage{position:relative;width:100%;max-width:920px;flex:1}
+  svg{width:100%;height:auto;display:block}
+  .center text{fill:var(--ink)}
+  .node-box{paint-order:stroke}
+  text{font-family:inherit}
+
+  /* legend */
+  .legend{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;margin-top:22px}
+  .legend div{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
+  .dot{width:12px;height:12px;border-radius:3px}
+  .foot{margin-top:18px;color:var(--mut);font-size:12px;text-align:center;max-width:640px}
+  .foot b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<div class="title">
+  <h1>锁版本 · 冻依赖 · 防漂移</h1>
+  <p>pnpm 依赖管理安全三部曲 —— 一张图读懂依赖永不漂移的本质</p>
+</div>
+
+<div class="stage">
+<svg viewBox="0 0 920 640" xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <linearGradient id="gline1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#58a6ff"/><stop offset="100%" stop-color="#58a6ff" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="gline2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#bc8cff"/><stop offset="100%" stop-color="#bc8cff" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="gline3" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3fb950"/><stop offset="100%" stop-color="#3fb950" stop-opacity="0.25"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- ============ 连接线 ============ -->
+  <!-- 中心 -> 三个主分支 -->
+  <path d="M460 320 L210 150" stroke="url(#gline1)" stroke-width="2.5" fill="none"/>
+  <path d="M460 320 L460 90"  stroke="url(#gline2)" stroke-width="2.5" fill="none"/>
+  <path d="M460 320 L710 150" stroke="url(#gline3)" stroke-width="2.5" fill="none"/>
+
+  <!-- 分支1 子线 -->
+  <path d="M210 150 L90 90"  stroke="#58a6ff" stroke-opacity=".35" stroke-width="1.6" fill="none"/>
+  <path d="M210 150 L90 210" stroke="#58a6ff" stroke-opacity=".35" stroke-width="1.6" fill="none"/>
+  <!-- 分支2 子线 -->
+  <path d="M460 90 L390 40"  stroke="#bc8cff" stroke-opacity=".35" stroke-width="1.6" fill="none"/>
+  <path d="M460 90 L530 40"  stroke="#bc8cff" stroke-opacity=".35" stroke-width="1.6" fill="none"/>
+  <!-- 分支3 子线 -->
+  <path d="M710 150 L830 90"  stroke="#3fb950" stroke-opacity=".35" stroke-width="1.6" fill="none"/>
+  <path d="M710 150 L830 210" stroke="#3fb950" stroke-opacity=".35" stroke-width="1.6" fill="none"/>
+
+  <!-- ============ 中心节点 ============ -->
+  <g class="center" filter="url(#glow)">
+    <circle cx="460" cy="320" r="74" fill="#101727" stroke="#e6edf3" stroke-width="1.5"/>
+    <circle cx="460" cy="320" r="74" fill="none" stroke="url(#gline1)" stroke-width="3"/>
+    <text x="460" y="305" text-anchor="middle" font-size="17" font-weight="800">依赖安全</text>
+    <text x="460" y="330" text-anchor="middle" font-size="12" fill="#8b949e">永不漂移</text>
+    <text x="460" y="350" text-anchor="middle" font-size="11" fill="#8b949e">今天=明天</text>
+  </g>
+
+  <!-- ============ 分支1：锁版本 ============ -->
+  <g>
+    <circle cx="210" cy="150" r="40" fill="#0e1b30" stroke="#58a6ff" stroke-width="2"/>
+    <text x="210" y="146" text-anchor="middle" font-size="15" font-weight="700" fill="#58a6ff">锁版本</text>
+    <text x="210" y="163" text-anchor="middle" font-size="11" fill="#c9d4e0">.pvmrc</text>
+
+    <g>
+      <rect x="20" y="70" width="150" height="40" rx="9" fill="#161b22" stroke="#30363d"/>
+      <text x="95" y="94" text-anchor="middle" font-size="12" fill="#e6edf3">pvm use pnpm@9 --local</text>
+    </g>
+    <g>
+      <rect x="14" y="195" width="160" height="40" rx="9" fill="#161b22" stroke="#30363d"/>
+      <text x="94" y="210" text-anchor="middle" font-size="12" fill="#e6edf3">进项目自动锁定版本</text>
+      <text x="94" y="227" text-anchor="middle" font-size="11" fill="#8b949e">node / pnpm 统一</text>
+    </g>
+  </g>
+
+  <!-- ============ 分支2：冻依赖 ============ -->
+  <g>
+    <circle cx="460" cy="90" r="40" fill="#1a1430" stroke="#bc8cff" stroke-width="2"/>
+    <text x="460" y="86" text-anchor="middle" font-size="15" font-weight="700" fill="#bc8cff">冻依赖</text>
+    <text x="460" y="103" text-anchor="middle" font-size="11" fill="#d9cff0">.npmrc</text>
+
+    <g>
+      <rect x="316" y="14" width="160" height="40" rx="9" fill="#161b22" stroke="#30363d"/>
+      <text x="396" y="31" text-anchor="middle" font-size="12" fill="#e6edf3">save-prefix=""</text>
+      <text x="396" y="46" text-anchor="middle" font-size="10.5" fill="#8b949e">去掉 ^ ~ 精确锁版本</text>
+    </g>
+    <g>
+      <rect x="448" y="14" width="172" height="40" rx="9" fill="#161b22" stroke="#30363d"/>
+      <text x="534" y="31" text-anchor="middle" font-size="12" fill="#e6edf3">prefer-frozen-lockfile</text>
+      <text x="534" y="46" text-anchor="middle" font-size="10.5" fill="#8b949e">resolution-mode=time-based</text>
+    </g>
+  </g>
+
+  <!-- ============ 分支3：防漂移 ============ -->
+  <g>
+    <circle cx="710" cy="150" r="40" fill="#0e2018" stroke="#3fb950" stroke-width="2"/>
+    <text x="710" y="146" text-anchor="middle" font-size="15" font-weight="700" fill="#3fb950">防漂移</text>
+    <text x="710" y="163" text-anchor="middle" font-size="11" fill="#bfe9cc">lockfile</text>
+
+    <g>
+      <rect x="752" y="70" width="160" height="40" rx="9" fill="#161b22" stroke="#30363d"/>
+      <text x="832" y="94" text-anchor="middle" font-size="12" fill="#e6edf3">--frozen-lockfile</text>
+    </g>
+    <g>
+      <rect x="748" y="195" width="168" height="40" rx="9" fill="#161b22" stroke="#30363d"/>
+      <text x="832" y="210" text-anchor="middle" font-size="12" fill="#e6edf3">CI 不一致即报错</text>
+      <text x="832" y="227" text-anchor="middle" font-size="11" fill="#8b949e">冲突用脚本解</text>
+    </g>
+  </g>
+
+  <!-- ============ 底部保证条 ============ -->
+  <g>
+    <rect x="150" y="500" width="200" height="46" rx="11" fill="#0e1b30" stroke="#58a6ff" stroke-opacity=".5"/>
+    <text x="250" y="519" text-anchor="middle" font-size="12" fill="#c9d4e0">今天能跑</text>
+    <text x="250" y="537" text-anchor="middle" font-size="12" fill="#58a6ff" font-weight="700">→ 明天也能跑</text>
+
+    <rect x="360" y="500" width="200" height="46" rx="11" fill="#1a1430" stroke="#bc8cff" stroke-opacity=".5"/>
+    <text x="460" y="519" text-anchor="middle" font-size="12" fill="#d9cff0">本机能跑</text>
+    <text x="460" y="537" text-anchor="middle" font-size="12" fill="#bc8cff" font-weight="700">→ 队友也能跑</text>
+
+    <rect x="570" y="500" width="200" height="46" rx="11" fill="#0e2018" stroke="#3fb950" stroke-opacity=".5"/>
+    <text x="670" y="519" text-anchor="middle" font-size="12" fill="#bfe9cc">本地能跑</text>
+    <text x="670" y="537" text-anchor="middle" font-size="12" fill="#3fb950" font-weight="700">→ CI 也能跑</text>
+  </g>
+
+</svg>
+</div>
+
+<div class="legend">
+  <div><span class="dot" style="background:#58a6ff"></span>锁版本 · .pvmrc（工具链）</div>
+  <div><span class="dot" style="background:#bc8cff"></span>冻依赖 · .npmrc（策略）</div>
+  <div><span class="dot" style="background:#3fb950"></span>防漂移 · lockfile（真相）</div>
+</div>
+
+<p class="foot">
+  三层锁死 = <b>工具链 + 策略 + 依赖</b>。结论：<b>"在我机器上能跑" 从借口变成陈述。</b>
+</p>
+
+</body>
+</html>
