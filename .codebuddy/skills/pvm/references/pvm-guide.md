@@ -1,4 +1,4 @@
-# pvm 使用指南（pvm-env 查表手册）
+# pvm 使用指南（pvm 官方查表手册）
 
 > 事实来源：pvm 仓库（cmd/root.go 帮助、dockit 文档）。回答用法前先查本表，禁止编造命令。
 

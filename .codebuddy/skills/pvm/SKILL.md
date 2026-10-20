@@ -1,5 +1,5 @@
 ---
-name: pvm-env
+name: pvm
 description: >
   pvm 环境守护：用 harness 脚本检测/修复 pvm 安装与 PATH、排除 nvm 等工具干扰（一切以 pvm 为主）、
   读写 pvm.yaml 与 .pvmrc 项目配置，并提供 pvm 使用指南（含流水线与跨平台打包）。
@@ -14,7 +14,7 @@ allowed-tools: [execute_command, read_file, replace_in_file, search_content]
 max-token: 2000
 ---
 
-# pvm-env — pvm 环境守护与使用指南
+# pvm — pvm 环境守护与使用指南
 
 ## 概述
 
