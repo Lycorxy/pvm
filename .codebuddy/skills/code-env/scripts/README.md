@@ -1,6 +1,6 @@
 # 实用工具脚本
 
-所有脚本位于 `.codebuddy/skills/pvm-env-manager/scripts/`，支持 Windows、macOS 和 Linux。
+所有脚本位于 `.codebuddy/skills/code-env/scripts/`，支持 Windows、macOS 和 Linux。
 
 ---
 
@@ -17,7 +17,7 @@
 
 ```bash
 # macOS / Linux（Git Bash 下会识别为 Windows 并推荐 PowerShell 安装器）
-bash .codebuddy/skills/pvm-env-manager/scripts/detect-env.sh
+bash .codebuddy/skills/code-env/scripts/detect-env.sh
 ```
 
 输出示例：
@@ -59,9 +59,9 @@ Or the one-line remote installer:
 
 ```bash
 # macOS / Linux：Skill 在当前仓库时，自动识别 Intel、Apple Silicon、x64、ARM64
-bash .codebuddy/skills/pvm-env-manager/scripts/install-pvm.sh
-bash .codebuddy/skills/pvm-env-manager/scripts/install-pvm.sh --version v0.0.1
-bash .codebuddy/skills/pvm-env-manager/scripts/install-pvm.sh --detect-only
+bash .codebuddy/skills/code-env/scripts/install-pvm.sh
+bash .codebuddy/skills/code-env/scripts/install-pvm.sh --version v0.0.1
+bash .codebuddy/skills/code-env/scripts/install-pvm.sh --detect-only
 ```
 
 直接使用远程正式安装器：

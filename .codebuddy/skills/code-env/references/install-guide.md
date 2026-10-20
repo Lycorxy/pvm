@@ -160,7 +160,7 @@ PVM 的 shim 是 pvm.exe 的硬链接，杀软可能误报。
 Skill 位于当前仓库时：
 
 ```bash
-bash .codebuddy/skills/pvm-env-manager/scripts/install-pvm.sh
+bash .codebuddy/skills/code-env/scripts/install-pvm.sh
 ```
 
 通用 Skill 路径：
