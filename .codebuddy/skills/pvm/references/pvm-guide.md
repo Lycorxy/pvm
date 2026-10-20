@@ -4,6 +4,7 @@
 
 ## 目录
 
+0. 能力与局限（边界，先读）
 1. pvm 是什么 / 版本解析链
 2. 安装与卸载
 3. 运行时命令速查
@@ -11,6 +12,31 @@
 5. pvm.yaml（流水线）
 6. pvm pack（跨平台打包）
 7. 排障速查
+
+## 0. 能力与局限（边界，先读）
+
+**能做什么（功能范围）：**
+
+- 版本管理：9 种运行时（node/bun/deno/python/pnpm/yarn/go/git/rust）的安装、切换、声明式锁定（.pvmrc）、shim 统一切换
+- 项目环境：.pvmrc 提交 Git 后团队版本一致；`pvm install`/`pvm use` 自动装齐激活
+- 流水线：pvm.yaml 声明构建/打包/发布流程，`pvm run` 一条命令执行，执行前自动装齐运行时
+- 打包：`pvm pack` 把 go/node/python 项目打成单可执行文件，**默认跨平台全量**（5 平台矩阵）
+- AI 协作：本 skill（环境守护 harness + 官方查表手册）
+
+**局限与边界（做不到的，提前说清）：**
+
+| 局限 | 说明 | 应对 |
+|------|------|------|
+| python 打包不能交叉 | PyInstaller 硬限制，`pvm pack python` 仅产出当前平台；指定其他平台直接报错 | 各目标平台分别跑，或 CI matrix |
+| node SEA 要求 Node ≥ 20 | 低版本 node 直接拒绝打包 | `pvm install node@lts` 后重试 |
+| darwin 产物在非 macOS 主机上未签名 | 注入会破坏签名，非 macOS 主机没有 codesign | 在 macOS 上 `codesign --sign -` 补签后分发 |
+| go 交叉编译要求纯 Go | 交叉编译强制 `CGO_ENABLED=0`，依赖 cgo 的项目交叉会失败 | 在对应平台原生构建，或消除 cgo 依赖 |
+| go/git/rust 全局唯一 | 不支持项目级 .pvmrc，同一时刻只保留一个版本 | 用 `--user`/`--system` |
+| self-update 只走 Gitee | GitHub Release 不会被 `pvm self-update` 看到 | 发布时 Gitee 同步建 release |
+| 无代码签名 | Windows Defender/360 可能误报 | 「仍要运行」；已嵌 manifest 降低误报 |
+| 环境变量进程级缓存 | PATH/版本修复后，已开的终端/IDE 读不到 | 新开终端 / 完全重启 IDE |
+| pvm.yaml 人手写、pvm 只读 | pvm 不生成/改写 pvm.yaml；`@`/`&` 是 YAML 保留字符须加引号 | 照第 5 节格式手写，写后 `pvm run --list` 验证 |
+| 不管应用依赖 | node_modules/pip 包等应用级依赖归 npm/pip 管，pvm 只管运行时版本 | 依赖安装走 code-env / 各包管理器 |
 
 ## 1. pvm 是什么 / 版本解析链
 

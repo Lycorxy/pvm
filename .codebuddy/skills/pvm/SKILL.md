@@ -102,6 +102,6 @@ max-token: 2000
 
 ## 参考资料
 
-- [references/pvm-guide.md](references/pvm-guide.md) — pvm 使用指南：安装/卸载、命令速查、.pvmrc、
-  pvm.yaml 流水线、pack 跨平台打包、排障
+- [references/pvm-guide.md](references/pvm-guide.md) — pvm 使用指南：**能力与局限边界（先读）**、安装/卸载、
+  命令速查、.pvmrc、pvm.yaml 流水线、pack 跨平台打包、排障
 - [references/floor-ceiling-guide.md](references/floor-ceiling-guide.md) — 检测项分工判定表（脚本 exit code vs 模型理解）
