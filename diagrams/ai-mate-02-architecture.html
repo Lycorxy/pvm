@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>pvm × AI Mate · 四层配合</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{background:
+    radial-gradient(900px 400px at 50% -14%, rgba(167,139,250,.14), transparent 62%),
+    radial-gradient(760px 360px at 94% 108%, rgba(52,211,153,.10), transparent 60%),
+    #0a0f1e;}
+body{margin:0}
+.app{
+  width:1280px;zoom:2;
+  padding:46px 56px 42px;
+  font-family:'Segoe UI','Microsoft YaHei','PingFang SC',sans-serif;
+  color:#e2e8f0;
+}
+.kicker{text-align:center;font-size:12px;letter-spacing:4px;font-weight:700;color:#c4b5fd;margin-bottom:10px}
+.title{text-align:center;font-size:30px;font-weight:800}
+.title b{
+  background:linear-gradient(90deg,#60a5fa,#a78bfa,#34d399);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.subtitle{text-align:center;font-size:14.5px;color:#94a3b8;margin:10px 0 30px}
+
+.hero{
+  width:720px;margin:0 auto;position:relative;
+  border:1.5px solid rgba(167,139,250,.55);border-radius:16px;
+  background:linear-gradient(180deg, rgba(167,139,250,.14), rgba(148,163,184,.05));
+  padding:18px 26px;text-align:center;
+  box-shadow:0 0 42px rgba(139,92,246,.16);
+}
+.hero .who{font-size:11.5px;letter-spacing:3px;font-weight:700;color:#c4b5fd}
+.hero h2{font-size:20px;font-weight:800;margin:6px 0 4px;color:#f1f5f9}
+.hero p{font-size:13px;color:#a8b6cc}
+.hero .chips{display:flex;justify-content:center;gap:10px;margin-top:12px}
+.hero .chip{
+  font-size:12.5px;font-weight:700;color:#e9d5ff;
+  border:1px solid rgba(196,181,253,.4);border-radius:999px;padding:5px 15px;
+  background:rgba(167,139,250,.10);
+}
+
+.connector{width:2px;height:26px;background:linear-gradient(180deg,rgba(167,139,250,.6),rgba(148,163,184,.25));margin:0 auto}
+
+.layers{display:flex;flex-direction:column;gap:12px;margin-top:2px}
+.layer{
+  display:grid;grid-template-columns:64px 176px 1fr 236px;align-items:center;gap:18px;
+  background:rgba(148,163,184,.055);
+  border:1px solid rgba(148,163,184,.16);
+  border-left:3px solid var(--ac);
+  border-radius:14px;padding:15px 24px;
+}
+.l1{--ac:#60a5fa}.l2{--ac:#34d399}.l3{--ac:#fbbf24}.l4{--ac:#f472b6}
+.num{
+  font-family:'Cascadia Code',Consolas,monospace;
+  font-size:26px;font-weight:800;color:var(--ac);opacity:.85;
+}
+.lname h3{font-size:17.5px;font-weight:800;color:#f1f5f9}
+.lname .tag{
+  font-family:'Cascadia Code',Consolas,monospace;
+  font-size:12px;color:var(--ac);margin-top:3px;
+}
+.ldesc{font-size:13.2px;line-height:1.7;color:#a8b6cc}
+.lcmd{
+  justify-self:end;text-align:right;
+  font-family:'Cascadia Code',Consolas,monospace;
+  font-size:12px;color:#cbd5e1;
+  border:1px solid rgba(148,163,184,.22);border-radius:8px;
+  background:rgba(15,23,42,.55);padding:8px 14px;white-space:nowrap;
+}
+
+.footer{
+  margin-top:26px;display:flex;align-items:center;justify-content:center;gap:16px;
+  border:1px solid rgba(148,163,184,.16);border-radius:12px;
+  padding:14px 20px;background:rgba(148,163,184,.045);
+}
+.footer .brand{
+  font-family:'Cascadia Code',Consolas,monospace;
+  font-size:14px;font-weight:800;color:#7dd3fc;
+}
+.footer .f-item{font-size:13px;color:#cbd5e1;font-weight:600}
+.footer .dot{width:4px;height:4px;border-radius:50%;background:#475569}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="kicker">ARCHITECTURE</div>
+  <div class="title">pvm × AI Mate：<b>四层配合</b></div>
+  <div class="subtitle">AI 只管干活，环境交给配置 —— 一层解决一类翻车</div>
+
+  <div class="hero">
+    <div class="who">AI MATE · 任意 CODING AGENT</div>
+    <h2>cd 进项目 → 干活 → 交付</h2>
+    <p>全程不碰全局、不猜环境、不问版本</p>
+    <div class="chips">
+      <span class="chip">不装环境</span>
+      <span class="chip">不切版本</span>
+      <span class="chip">不记命令</span>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="layers">
+    <div class="layer l1">
+      <div class="num">01</div>
+      <div class="lname"><h3>声明式环境</h3><div class="tag">.pvmrc</div></div>
+      <div class="ldesc">cd 即就位：shim 是原生硬链接，每次调用实时读取当前目录声明，跨项目自动切换。</div>
+      <div class="lcmd">pvm init --local node@22</div>
+    </div>
+    <div class="layer l2">
+      <div class="num">02</div>
+      <div class="lname"><h3>声明式流程</h3><div class="tag">pvm.yaml 本地流水线</div></div>
+      <div class="ldesc">构建/测试/打包/发布全部声明在案：@ 引用串行、&amp; 后台并发，执行前自动装齐运行时。</div>
+      <div class="lcmd">pvm run release:pro</div>
+    </div>
+    <div class="layer l3">
+      <div class="num">03</div>
+      <div class="lname"><h3>环境自愈</h3><div class="tag">pvm skill</div></div>
+      <div class="ldesc">5 项体检（安装/PATH/nvm 干扰/doctor/项目配置），每项失败自带「下一步」，修复后复验闭环。</div>
+      <div class="lcmd">check → fix → 复验</div>
+    </div>
+    <div class="layer l4">
+      <div class="num">04</div>
+      <div class="lname"><h3>跨平台交付</h3><div class="tag">pvm pack</div></div>
+      <div class="ldesc">go / node / python 一条命令出 5 平台产物，命名对齐 self-update，发完用户直接升级。</div>
+      <div class="lcmd">pvm pack go --entry .</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span class="brand">pvm</span><span class="f-item">单二进制</span><span class="dot"></span>
+    <span class="f-item">9 种运行时</span><span class="dot"></span>
+    <span class="f-item">秒级启动</span><span class="dot"></span>
+    <span class="f-item">无守护进程</span><span class="dot"></span>
+    <span class="f-item">Windows 原生</span>
+  </div>
+</div>
+</body>
+</html>

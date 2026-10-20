@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>pvm.yaml 本地流水线 · 并发 · 快速启动</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{background:
+    radial-gradient(860px 400px at 8% -12%, rgba(96,165,250,.13), transparent 60%),
+    radial-gradient(860px 400px at 92% 112%, rgba(52,211,153,.10), transparent 60%),
+    #0a0f1e;}
+body{margin:0}
+.app{
+  width:1280px;zoom:2;
+  padding:46px 56px 42px;
+  font-family:'Segoe UI','Microsoft YaHei','PingFang SC',sans-serif;
+  color:#e2e8f0;
+}
+.kicker{text-align:center;font-size:12px;letter-spacing:4px;font-weight:700;color:#7dd3fc;margin-bottom:10px}
+.title{text-align:center;font-size:30px;font-weight:800}
+.title b{
+  background:linear-gradient(90deg,#60a5fa,#34d399,#fbbf24);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.subtitle{text-align:center;font-size:14.5px;color:#94a3b8;margin:10px 0 30px}
+
+.cols{display:grid;grid-template-columns:600px 1fr;gap:26px;align-items:stretch}
+
+.panel{
+  background:rgba(148,163,184,.055);
+  border:1px solid rgba(148,163,184,.16);
+  border-radius:14px;overflow:hidden;
+}
+.panel .head{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 18px;border-bottom:1px solid rgba(148,163,184,.14);
+  background:rgba(15,23,42,.5);
+}
+.panel .head .dot{width:9px;height:9px;border-radius:50%}
+.panel .head .name{font-family:'Cascadia Code',Consolas,monospace;font-size:12.5px;color:#94a3b8;margin-left:4px}
+
+/* ---- yaml ---- */
+.code{
+  padding:16px 22px;font-size:13.2px;line-height:1.9;
+  font-family:'Cascadia Code',Consolas,'SF Mono',monospace;
+  white-space:pre;color:#cbd5e1;
+}
+.key{color:#7dd3fc;font-weight:700}
+.ref{color:#c4b5fd;font-weight:700}
+.and{color:#34d399;font-weight:800}
+.cm{color:#64748b}
+.numm{color:#fbbf24;font-weight:700}
+
+/* ---- timeline ---- */
+.tl{padding:20px 22px 14px}
+.zones{
+  display:grid;grid-template-columns:110px 1fr;
+  margin-bottom:6px;
+}
+.zonebar{position:relative;height:20px}
+.zl{
+  position:absolute;top:0;font-size:11px;font-weight:800;letter-spacing:1.5px;
+  color:#7c8aa5;text-align:center;
+}
+.zl.on{color:#34d399}
+.track{display:grid;grid-template-columns:110px 1fr;align-items:center;margin:9px 0}
+.track .tname{
+  font-family:'Cascadia Code',Consolas,monospace;
+  font-size:12px;color:#cbd5e1;
+}
+.barrow{position:relative;height:26px}
+.bar{
+  position:absolute;top:3px;height:20px;border-radius:6px;
+  display:flex;align-items:center;padding:0 10px;
+  font-family:'Cascadia Code',Consolas,monospace;
+  font-size:10.5px;font-weight:700;color:#0b1020;white-space:nowrap;
+}
+.b-build{left:0%;width:31%;background:linear-gradient(90deg,#60a5fa,#93c5fd)}
+.b-test{left:34%;width:35%;background:linear-gradient(90deg,#34d399,#a7f3d0)}
+.b-lint{left:34%;width:23%;background:linear-gradient(90deg,#fbbf24,#fde68a)}
+.b-pkg{left:72%;width:28%;background:linear-gradient(90deg,#a78bfa,#c4b5fd)}
+.guide{position:absolute;top:-4px;bottom:-4px;width:0;border-left:1.5px dashed rgba(148,163,184,.35)}
+.ruler{
+  display:grid;grid-template-columns:110px 1fr;margin-top:8px;
+}
+.ruler .ticks{position:relative;height:16px;font-family:'Cascadia Code',Consolas,monospace;font-size:11px;color:#64748b}
+.ruler .ticks span{position:absolute;transform:translateX(-50%)}
+.note{
+  margin:14px 4px 0;font-size:12.8px;color:#94a3b8;line-height:1.7;
+  border-top:1px solid rgba(148,163,184,.14);padding-top:12px;
+}
+.note b{color:#34d399}
+.note code{font-family:'Cascadia Code',Consolas,monospace;color:#cbd5e1;background:rgba(148,163,184,.1);padding:1px 7px;border-radius:5px;font-size:11.5px}
+
+/* ---- footer chips ---- */
+.chips{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:26px}
+.chip{
+  border:1px solid rgba(148,163,184,.16);border-radius:12px;
+  background:rgba(148,163,184,.045);padding:13px 18px;
+}
+.chip h4{font-size:13.5px;font-weight:800;color:#e2e8f0;margin-bottom:5px}
+.chip h4 em{font-style:normal;font-family:'Cascadia Code',Consolas,monospace;color:#7dd3fc}
+.chip p{font-size:12px;line-height:1.65;color:#94a3b8}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="kicker">LOCAL PIPELINE</div>
+  <div class="title">本地流水线：<b>@ 引用串行 · &amp; 并发 · 零手工引导</b></div>
+  <div class="subtitle">pvm.yaml 就是项目的操作说明书 —— AI 接手项目，一条命令跑完全程</div>
+
+  <div class="cols">
+    <div class="panel">
+      <div class="head">
+        <span class="dot" style="background:#fb7185"></span>
+        <span class="dot" style="background:#fbbf24"></span>
+        <span class="dot" style="background:#34d399"></span>
+        <span class="name">pvm.yaml</span>
+      </div>
+      <div class="code"><span class="cm"># ① 串行：构建完成才继续</span>
+- <span class="ref">"@build:pro"</span>          <span class="numm">①</span>
+<span class="cm"># ② 并发：测试与 lint 同时跑</span>
+- <span class="ref">"@test:unit"</span> <span class="and">&amp;</span> <span class="ref">@lint</span>   <span class="numm">②</span>
+<span class="cm"># ③ 交付：一条命令出 5 平台</span>
+- <span class="ref">"@pkg:go:pro"</span>         <span class="numm">③</span>
+
+<span class="cm"># 上游任务均可独立执行：</span>
+<span class="key">build:pro</span>:  [ pnpm run build:pro ]
+<span class="key">test:unit</span>:  [ vitest run ]
+<span class="key">lint</span>:       [ pnpm exec eslint . ]
+<span class="key">pkg:go:pro</span>: [ pvm pack go --entry . ]</div>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <span class="dot" style="background:#60a5fa"></span>
+        <span class="name">pvm run release:pro —— 执行时间线</span>
+      </div>
+      <div class="tl">
+        <div class="zones">
+          <span></span>
+          <div class="zonebar">
+            <span class="zl" style="left:0%;width:34%">串行</span>
+            <span class="zl on" style="left:34%;width:38%">&amp; 并发</span>
+            <span class="zl" style="left:72%;width:28%">串行</span>
+          </div>
+        </div>
+        <div class="track"><span class="tname">build:pro</span><div class="barrow"><div class="bar b-build">pnpm build</div></div></div>
+        <div class="track"><span class="tname">test:unit</span><div class="barrow"><span class="guide" style="left:34%"></span><div class="bar b-test">vitest run</div></div></div>
+        <div class="track"><span class="tname">lint</span><div class="barrow"><div class="bar b-lint">eslint</div></div></div>
+        <div class="track"><span class="tname">pkg:go:pro</span><div class="barrow"><span class="guide" style="left:34%"></span><span class="guide" style="left:72%"></span><div class="bar b-pkg">pvm pack ×5</div></div></div>
+        <div class="ruler"><span></span><div class="ticks">
+          <span style="left:0%">t0</span>
+          <span style="left:34%">t1</span>
+          <span style="left:72%">t2</span>
+          <span style="left:100%">t3 ✓</span>
+        </div></div>
+      </div>
+      <div class="note">总耗时 = build + <b>max(test, lint)</b> + pkg —— 并发段取最慢的一个，<b>不是相加</b>；<br>执行前 pvm 自动装齐 <code>.pvmrc</code> 声明的运行时，流水线里只有业务命令。</div>
+    </div>
+  </div>
+
+  <div class="chips">
+    <div class="chip">
+      <h4>零手工引导</h4>
+      <p>执行前自动装齐 .pvmrc 声明的运行时，AI 连「先装 node」这种环境命令都不用写。</p>
+    </div>
+    <div class="chip">
+      <h4><em>pvm run --list</em> 即能力清单</h4>
+      <p>AI 接手陌生项目，一屏看到全部流水线，构建/测试/发布命令不再靠猜。</p>
+    </div>
+    <div class="chip">
+      <h4><em>--dry-run</em> 先看后跑</h4>
+      <p>预览将要执行的命令序列再执行，AI 的每一步都透明可控。</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

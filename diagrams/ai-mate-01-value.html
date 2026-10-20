@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AI Mate × pvm · 问题与解法全景</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{background:
+    radial-gradient(900px 420px at 10% -12%, rgba(251,113,133,.10), transparent 60%),
+    radial-gradient(900px 420px at 90% -12%, rgba(96,165,250,.13), transparent 60%),
+    #0a0f1e;}
+body{margin:0}
+.app{
+  width:1280px;zoom:2;
+  padding:46px 52px 42px;
+  font-family:'Segoe UI','Microsoft YaHei','PingFang SC',sans-serif;
+  color:#e2e8f0;
+}
+.kicker{
+  text-align:center;font-size:12px;letter-spacing:4px;font-weight:700;
+  color:#7dd3fc;margin-bottom:10px;
+}
+.title{text-align:center;font-size:30px;font-weight:800;letter-spacing:.5px}
+.title b{
+  background:linear-gradient(90deg,#fbbf24,#34d399,#60a5fa);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.subtitle{text-align:center;font-size:14.5px;color:#94a3b8;margin:10px 0 32px}
+
+.grid{display:flex;flex-direction:column;gap:15px}
+.row{display:grid;grid-template-columns:386px 44px 468px 1fr;align-items:stretch}
+
+.card{
+  background:rgba(148,163,184,.055);
+  border:1px solid rgba(148,163,184,.16);
+  border-radius:14px;
+  padding:15px 20px;
+}
+.problem{border-left:3px solid #fb7185}
+.problem .tag{font-size:11px;font-weight:700;color:#fb7185;letter-spacing:2px}
+.problem h3{font-size:16.5px;font-weight:700;margin:5px 0 7px;color:#f1f5f9}
+.problem p{font-size:12.8px;line-height:1.75;color:#94a3b8}
+
+.arrow{display:flex;align-items:center;justify-content:center;color:#475569;font-size:19px}
+
+.solution{border-left:3px solid var(--ac);background:rgba(148,163,184,.075)}
+.solution .cmd{
+  font-family:'Cascadia Code',Consolas,'SF Mono',monospace;
+  font-size:11.5px;color:var(--ac);
+  background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.14);
+  border-radius:6px;padding:2px 9px;display:inline-block;margin-bottom:8px;
+}
+.solution h3{font-size:16.5px;font-weight:700;margin-bottom:7px;color:#f1f5f9}
+.solution h3 i{font-style:normal;font-size:12px;color:#7c8aa5;font-weight:600;margin-left:8px}
+.solution p{font-size:12.8px;line-height:1.75;color:#a8b6cc}
+
+.value{display:flex;align-items:center;justify-content:center}
+.value .pill{
+  border:1px solid rgba(52,211,153,.45);color:#34d399;
+  background:rgba(52,211,153,.08);
+  border-radius:999px;padding:8px 16px;font-size:13px;font-weight:700;white-space:nowrap;
+}
+
+.r1{--ac:#60a5fa}.r2{--ac:#34d399}.r3{--ac:#a78bfa}.r4{--ac:#fbbf24}
+
+.footer{
+  margin-top:28px;display:flex;align-items:center;justify-content:center;gap:16px;
+  border:1px solid rgba(148,163,184,.16);border-radius:12px;
+  padding:14px 20px;background:rgba(148,163,184,.045);
+}
+.footer .f-item{font-size:13px;color:#cbd5e1;font-weight:600}
+.footer .dot{width:4px;height:4px;border-radius:50%;background:#475569}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="kicker">PROBLEM → SOLUTION → VALUE</div>
+  <div class="title">一个 AI 助手，四个项目，<b>零环境翻车</b></div>
+  <div class="subtitle">多应用开发的病根只有一个：环境状态不跟着项目走。pvm 用四层解法逐条击破。</div>
+
+  <div class="grid">
+
+    <div class="row r1">
+      <div class="card problem">
+        <div class="tag">翻车 01</div>
+        <h3>版本错乱</h3>
+        <p>全局装的是 Node 22，老项目要 18 —— lockfile 被静默重写，CI 红了，查半天才发现是环境。</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="card solution">
+        <span class="cmd">.pvmrc</span>
+        <h3>声明式环境<i>版本跟着项目走</i></h3>
+        <p>cd 进项目那一刻环境就位：不 use、不切终端、不用问。去隔壁项目，自动变。</p>
+      </div>
+      <div class="value"><span class="pill">零切换成本</span></div>
+    </div>
+
+    <div class="row r2">
+      <div class="card problem">
+        <div class="tag">翻车 02</div>
+        <h3>环境试错循环</h3>
+        <p>装了→版本不对→PATH 又错，一分钟的活折腾半小时，还全发生在你的全局环境里。</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="card solution">
+        <span class="cmd">pvm skill</span>
+        <h3>环境自愈<i>AI 自助诊断</i></h3>
+        <p>5 项体检，每项失败自带「下一步」：装、接管、修 PATH。AI 修复后复验到全绿，闭环不折腾人。</p>
+      </div>
+      <div class="value"><span class="pill">故障自闭环</span></div>
+    </div>
+
+    <div class="row r3">
+      <div class="card problem">
+        <div class="tag">翻车 03</div>
+        <h3>命令靠猜</h3>
+        <p>npm run build？make release？猜错 → 翻 README → 再猜。文档写得再全，AI 也未必读到那一段。</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="card solution">
+        <span class="cmd">pvm.yaml</span>
+        <h3>本地流水线<i>项目的操作说明书</i></h3>
+        <p>pvm run --list 一屏列出项目全部能力；@ 引用串行、&amp; 后台并发，AI 接手即上手。</p>
+      </div>
+      <div class="value"><span class="pill">上手零猜测</span></div>
+    </div>
+
+    <div class="row r4">
+      <div class="card problem">
+        <div class="tag">翻车 04</div>
+        <h3>全局污染连带崩盘</h3>
+        <p>为修 B 升了全局包、改了 PATH —— B 是好了，A 和 C 早上还好好的，晚上神秘挂掉。</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="card solution">
+        <span class="cmd">项目级隔离</span>
+        <h3>环境按目录生效<i>互不可见</i></h3>
+        <p>环境状态只在本项目目录内生效，项目之间互不可见、互不污染，一台机器装四套运行时。</p>
+      </div>
+      <div class="value"><span class="pill">修 A 不炸 C</span></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span class="f-item">单二进制</span><span class="dot"></span>
+    <span class="f-item">9 种运行时</span><span class="dot"></span>
+    <span class="f-item">项目级隔离</span><span class="dot"></span>
+    <span class="f-item">Windows 原生</span><span class="dot"></span>
+    <span class="f-item">无守护进程</span>
+  </div>
+</div>
+</body>
+</html>
