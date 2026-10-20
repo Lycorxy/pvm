@@ -1,7 +1,7 @@
 ---
 alwaysApply: true
 ---
-# pvm-guard 强制规则
+# pvm-env 强制规则
 
 - 一切以 pvm 为主：用户确定使用 pvm 后，环境问题一律修复 pvm（setup-path/setup/重装），
   禁止建议改用 nvm/volta/fnm 等其他工具或"绕开 pvm"。

@@ -72,7 +72,7 @@ function pipelineFailNext(out) {
 
 // ---------- check：环境检测 ----------
 function cmdCheck() {
-  console.log(`[pvm-guard] ${IS_WIN ? 'windows' : process.platform} | cwd=${CWD} | PVM_HOME=${PVM_HOME}`);
+  console.log(`[pvm-env] ${IS_WIN ? 'windows' : process.platform} | cwd=${CWD} | PVM_HOME=${PVM_HOME}`);
 
   // 1) pvm 安装
   const v = run('pvm --version');

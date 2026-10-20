@@ -1,4 +1,4 @@
-# pvm-guard 触发与调度配置
+# pvm-env 触发与调度配置
 priority: 70
 auto-trigger: true
 trigger-keywords:
