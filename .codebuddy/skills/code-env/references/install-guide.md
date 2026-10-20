@@ -25,7 +25,7 @@
 当前仓库可直接复制：
 
 ```powershell
-& "D:\gitfile\pvm\.codebuddy\skills\pvm-env-manager\scripts\install-pvm.ps1"
+& "D:\gitfile\pvm\.codebuddy\skills\code-env\scripts\install-pvm.ps1"
 ```
 
 通用 Skill 路径：

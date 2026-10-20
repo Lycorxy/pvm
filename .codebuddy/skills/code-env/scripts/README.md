@@ -12,7 +12,7 @@
 
 ```powershell
 # Windows
-& "D:\gitfile\pvm\.codebuddy\skills\pvm-env-manager\scripts\detect-env.ps1"
+& "D:\gitfile\pvm\.codebuddy\skills\code-env\scripts\detect-env.ps1"
 ```
 
 ```bash
@@ -50,11 +50,11 @@ Or the one-line remote installer:
 
 ```powershell
 # Windows：复制即可执行，自动识别 x64 / ARM64
-& "D:\gitfile\pvm\.codebuddy\skills\pvm-env-manager\scripts\install-pvm.ps1"
+& "D:\gitfile\pvm\.codebuddy\skills\code-env\scripts\install-pvm.ps1"
 
 # 指定版本 / 仅查看将选择的安装包
-& "D:\gitfile\pvm\.codebuddy\skills\pvm-env-manager\scripts\install-pvm.ps1" -Version v0.0.1
-& "D:\gitfile\pvm\.codebuddy\skills\pvm-env-manager\scripts\install-pvm.ps1" -DetectOnly
+& "D:\gitfile\pvm\.codebuddy\skills\code-env\scripts\install-pvm.ps1" -Version v0.0.1
+& "D:\gitfile\pvm\.codebuddy\skills\code-env\scripts\install-pvm.ps1" -DetectOnly
 ```
 
 ```bash
