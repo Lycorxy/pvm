@@ -98,6 +98,8 @@ func Execute() error {
 		return runSetup(args)
 	case "setup-path":
 		return runSetupPath(args)
+	case "repair-owner":
+		return runRepairOwner(args)
 	case "doctor":
 		return runDoctor(args)
 	case "validate":
@@ -142,8 +144,10 @@ Version management (shim-driven):
   reshim               Rebuild shim scripts (after adding a binary)
 
 System:
-  setup                First-time setup (dirs, PATH, shims)
+  setup                First-time setup (dirs, PATH, shims) [--scope user|admin]
   setup-path           Check and fix PATH configuration (diagnose conflicts)
+  repair-owner         Restore PVM_HOME file ownership to current user
+                       (fixes installs broken by Administrator sessions)
   config               Manage .pvmrc project config (no admin needed!)
   run <name>           Run a pipeline from pvm.yaml [--list|--dry-run]
   pack <node|python|go>  Pack into single executables for all platforms by default; --platform <os>/<arch> to pick one

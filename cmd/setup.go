@@ -78,6 +78,37 @@ func runAsAdmin(args []string) error {
 //  5. 设置 PVM_HOME 环境变量
 func runSetup(args []string) error {
 	_, noElevate := hasFlag(args, "--no-elevate")
+
+	// --fix-owner: 仅修复 PVM_HOME 文件所有权（解决"管理员装完后普通权限装包失败"）
+	if _, ok := hasFlag(args, "--fix-owner"); ok {
+		return runRepairOwner(args)
+	}
+
+	// --scope user|admin: 选择安装方式
+	//   user （默认）：完全不需要管理员权限，仅写用户目录与用户 PATH
+	//   admin       ：自动弹 UAC 以管理员重新运行完整 setup，
+	//                 额外把 pvm shims/bin 前置到系统 PATH 并在结束时
+	//                 自动归还文件所有权（见 ensureCleanOwnership）
+	scope := "user"
+	for i, a := range args {
+		if a == "--scope" && i+1 < len(args) {
+			scope = strings.ToLower(args[i+1])
+		}
+	}
+	if scope != "user" && scope != "admin" {
+		return fmt.Errorf("unsupported --scope: %s (use user or admin)", scope)
+	}
+	if runtime.GOOS == "windows" && scope == "admin" && !isElevated() && !noElevate {
+		logger.Info("  → scope=admin: requesting administrator privileges (UAC)...")
+		fmt.Println()
+		if err := runAsAdmin([]string{"setup", "--scope", "admin"}); err == nil {
+			logger.Info("  OK Admin-scope setup finished in the elevated window.")
+			logger.Info("    Run 'pvm doctor' to verify (system PATH now prefers pvm shims).")
+			return nil
+		}
+		logger.Info("  ⚠ Elevation declined; continuing with user-scope setup (no admin required).")
+	}
+
 	home := config.PvmHome()
 	binHome := config.BinHome()
 	shimsDir := config.ShimsDir()
@@ -217,6 +248,12 @@ func runSetup(args []string) error {
 		// Unix: PVM_HOME 已经在 rc 文件中通过 setupUnixPath 设置
 		logger.Info("  ✓ PVM_HOME = %s", home)
 	}
+	fmt.Println()
+
+	// ---- 6. 文件所有权守护（Windows）----
+	// 管理员模式：自动归还所有权，避免"管理员装完 → 普通权限装包失败"。
+	// 普通模式：检测到历史污染时提示并自动修复（--no-elevate 时仅提示）。
+	ensureCleanOwnership(!noElevate)
 	fmt.Println()
 
 	// ---- Done ----

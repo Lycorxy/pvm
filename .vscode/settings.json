@@ -84,6 +84,7 @@
         // 在字符串内部也启用智能提示（默认 off）
         // 作用：字符串里写文件路径、CSS 类名、import 路径时能自动补全
         "strings": "on"
-    }
+    },
+    "liveServer.settings.port": 5501
 
 }

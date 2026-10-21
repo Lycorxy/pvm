@@ -18,17 +18,29 @@
     PVM_HOME                 Install root (default: %USERPROFILE%\.pvm)
     PVM_INSTALL_VERSION      Release tag to install (default: latest)
     PVM_INSTALL_SOURCE       auto, gitee, or github (default: auto)
+    PVM_INSTALL_SCOPE        user or admin (default: user)
     PVM_GITEE_REPO           Gitee repository (default: lycorxy/pvm)
     PVM_GITHUB_REPO          GitHub repository (default: Lycorxy/pvm)
     PVM_REPO                 Compatibility override for both repositories
     PVM_REQUIRE_CHECKSUM=1   Fail if checksums.txt is unavailable
     PVM_NO_MODIFY_PATH=1     Do not modify persistent PATH settings
+
+  Scope:
+    -Scope user  (default) No admin rights needed. Installs to %USERPROFILE%\.pvm
+                           and writes user-level PATH. Recommended for daily work.
+    -Scope admin           Relaunches this installer elevated (UAC). Additionally
+                           prepends pvm shims to the SYSTEM PATH. File ownership
+                           is restored to your user afterwards, so normal
+                           (non-admin) terminals keep working. Use when pvm shims
+                           must override system-wide runtimes for ALL users.
+
 #>
 
 [CmdletBinding()]
 param(
   [string]$Version,
-  [string]$Source
+  [string]$Source,
+  [string]$Scope
 )
 
 if ($MyInvocation.InvocationName -eq 'Invoke-Expression') {
@@ -263,9 +275,38 @@ foreach ($setting in @('PVM_REQUIRE_CHECKSUM', 'PVM_NO_MODIFY_PATH')) {
 $script:RequireChecksum = $env:PVM_REQUIRE_CHECKSUM -eq '1'
 $noModifyPath = $env:PVM_NO_MODIFY_PATH -eq '1'
 
+if (-not $Scope) { $Scope = $env:PVM_INSTALL_SCOPE }
+if (-not $Scope) { $Scope = 'user' }
+$Scope = $Scope.ToLowerInvariant()
+if (@('user', 'admin') -notcontains $Scope) {
+  Stop-Installer "unsupported scope: $Scope (use user or admin)"
+}
+
 $pvmHome = $env:PVM_HOME
 if (-not $pvmHome) { $pvmHome = Join-Path $env:USERPROFILE '.pvm' }
 $pvmHome = [Environment]::ExpandEnvironmentVariables($pvmHome)
+
+# admin scope：以管理员权限重新运行本安装器（UAC）。
+# 提升窗口内完成安装后，pvm setup 会自动把文件所有权归还给当前用户，
+# 保证之后普通（非管理员）终端/IDE 一切可用。
+$isAdmin = $false
+try {
+  $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+} catch {
+  $isAdmin = $false
+}
+if ($Scope -eq 'admin' -and -not $isAdmin) {
+  Write-Step 'admin scope requested; relaunching installer elevated (UAC prompt will appear)'
+  $elevatedScript = "`$env:PVM_INSTALL_SCOPE = 'admin'`n" +
+    $MyInvocation.MyCommand.Definition + "`n" +
+    "Write-Host ''; Read-Host 'Install finished. Press Enter to close'"
+  $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($elevatedScript))
+  Start-Process powershell -Verb Runas -Wait -ArgumentList @(
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded
+  )
+  exit $LASTEXITCODE
+}
 
 $architectureName = $null
 try {
@@ -404,7 +445,12 @@ try {
     }
   } else {
     Write-Step 'configuring pvm and Windows PATH'
-    & $destination setup --no-elevate
+    # admin scope 已在提升窗口内运行：不加 --no-elevate，让 setup 直接用
+    # 管理员权限修复系统 PATH；结束时它会把文件所有权归还给当前用户。
+    # user scope：--no-elevate，全程不弹 UAC。
+    $setupArgs = @('setup')
+    if ($Scope -ne 'admin') { $setupArgs += '--no-elevate' }
+    & $destination @setupArgs
     if ($LASTEXITCODE -ne 0) {
       if (Test-Path -LiteralPath $backupPath) {
         Write-InstallerWarning "the previous executable is available at $backupPath"
@@ -431,6 +477,7 @@ try {
   Write-Host ''
   Write-Step "$($installedVersion -join ' ') installed successfully"
   Write-Host "  Source: $selectedSource"
+  Write-Host "  Scope:  $Scope"
   Write-Host "  URL:    $downloadUrl"
   Write-Host "  Path:   $destination"
   Write-Host ''
