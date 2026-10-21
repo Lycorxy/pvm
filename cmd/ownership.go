@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/pvm/pvm/internal/logger"
-	"runtime"
 )
 
 // ---- PVM_HOME 文件所有权守护（跨平台）----
@@ -31,28 +30,9 @@ import (
 // ownerScanLimit 单次扫描的最大条目数，避免超大目录时扫描过久
 const ownerScanLimit = 20000
 
-// ensureCleanOwnership 所有权守护入口，在 pvm setup 完成时调用：
-//   - 提升态：自动归还所有权（防污染）
-//   - 普通态：检测污染，提示并按条件自动修复
-//     （Windows 弹 UAC；Unix 因 sudo 需要密码输入，仅提示修复命令。
-//      autoElevate=false 时（如 install.ps1 的 --no-elevate 路径）仅提示。）
-func ensureCleanOwnership(autoElevate bool) {
-	if runtime.GOOS == "windows" {
-		ensureCleanOwnershipWindows(autoElevate)
-		return
-	}
-	ensureCleanOwnershipUnix(autoElevate)
-}
-
-// runRepairOwner 处理 `pvm repair-owner` 命令：
-//   - Windows：普通权限检测污染 → UAC 提权修复；管理员权限直接修复并复验
-//   - Unix：普通用户检测污染并提示 sudo 修复；root（sudo）直接 chown 修复
-func runRepairOwner(args []string) error {
-	if runtime.GOOS == "windows" {
-		return repairOwnerWindows(args)
-	}
-	return repairOwnerUnix(args)
-}
+// 平台入口（在各平台文件中以同名实现，build tag 互斥）：
+//   - ensureCleanOwnership(autoElevate bool)：setup 完成时的所有权守护
+//   - runRepairOwner(args []string)：pvm repair-owner 命令实现
 
 // logOwnershipPollution 输出统一的污染警告（两端共用）
 func logOwnershipPollution(home, owner string, polluted int) {

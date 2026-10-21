@@ -108,6 +108,9 @@ func runSetup(args []string) error {
 		}
 		logger.Info("  ⚠ Elevation declined; continuing with user-scope setup (no admin required).")
 	}
+	if scope == "admin" && runtime.GOOS != "windows" {
+		logger.Info("  ℹ --scope admin is Windows-only; Unix setup never needs root. Continuing.")
+	}
 
 	home := config.PvmHome()
 	binHome := config.BinHome()

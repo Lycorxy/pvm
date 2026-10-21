@@ -143,8 +143,11 @@ func ownershipHealthy(home, owner string) bool {
 	return true
 }
 
-// ensureCleanOwnershipWindows Windows 版所有权守护（见 ownership.go 总说明）
-func ensureCleanOwnershipWindows(autoElevate bool) {
+// ensureCleanOwnership 所有权守护入口，在 pvm setup 完成时调用：
+//   - 提升态（管理员）：自动把 PVM_HOME 所有权归还给当前用户（防污染）
+//   - 普通态：检测污染；发现时提示，并按条件经 UAC 自动修复
+//     （autoElevate=false 时（如 install.ps1 的 --no-elevate 路径）仅提示）
+func ensureCleanOwnership(autoElevate bool) {
 	home := config.PvmHome()
 	owner := currentAccountName()
 	if owner == "" {
@@ -195,8 +198,9 @@ func ensureCleanOwnershipWindows(autoElevate bool) {
 	}
 }
 
-// repairOwnerWindows 处理 `pvm repair-owner`（Windows 实现）
-func repairOwnerWindows(args []string) error {
+// runRepairOwner 处理 `pvm repair-owner`（Windows 实现）：
+// 普通权限检测污染 → UAC 提权修复；管理员权限直接修复并复验
+func runRepairOwner(args []string) error {
 	_, elevatedFlag := hasFlag(args, "--elevated")
 
 	home := config.PvmHome()
