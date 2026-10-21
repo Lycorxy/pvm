@@ -10,13 +10,23 @@ description: pvm setup 与 pvm doctor 命令——首次初始化、PATH 冲突�
 首次初始化 PVM 目录结构并把 shims 加入 PATH。
 
 ```bash
-pvm setup            # 手动初始化
-pvm setup --no-elevate   # 初始化但不请求管理员权限（仅报告系统 PATH 冲突）
-pvm setup-path       # 仅检查并修复 PATH 配置
+pvm setup                     # 手动初始化（默认 user scope，无需管理员）
+pvm setup --scope admin       # 管理员模式：UAC 提权重跑，额外前置系统 PATH
+pvm setup --no-elevate        # 初始化但不请求管理员权限（仅报告系统 PATH 冲突）
+pvm setup --fix-owner         # 仅修复 ~/.pvm 文件所有权
+pvm repair-owner              # 检测并修复文件所有权（见下文）
+pvm setup-path                # 仅检查并修复 PATH 配置
 ```
 
 `setup-path` 会诊断 PATH 是否包含 `~/.pvm/shims`、`~/.pvm/bin`，
 并提示与其它版本管理器（如 nvm）的冲突。
+
+### 安装方式选择（--scope）
+
+| Scope | 行为 | 适用场景 |
+| ----- | ---- | -------- |
+| `user`（默认） | 全程不弹 UAC，只写用户目录与用户 PATH | 日常开发（推荐） |
+| `admin` | 自动弹 UAC 以管理员重跑完整 setup：把 pvm shims/bin **前置到系统 PATH**（对所有用户生效），并在结束时自动归还文件所有权 | 需要压过系统级 nvm/node 等安装 |
 
 ### 与 nvm / 系统 node 的冲突处理
 
@@ -34,6 +44,29 @@ pvm setup-path       # 仅检查并修复 PATH 配置
 
 不想弹 UAC 时用 `pvm setup --no-elevate`：只修改用户级 PATH，系统 PATH 冲突仅打印报告。
 一键安装脚本默认就以此方式调用（不提权，仅用户级 PATH）。
+
+### 文件所有权守护（repair-owner）
+
+**问题**：曾以"管理员身份"运行安装器 / `pvm setup` / `pvm install`（Windows），
+或用 `sudo` 运行（macOS / Linux）后，`~/.pvm` 下由提升进程创建的文件归
+Administrators / root 所有。之后**普通权限**的 pnpm / node shim 无法写入这些文件，
+表现为"普通终端装包永远失败，必须管理员打开才成功"，且删除重装也无法解决
+（普通权限删不掉污染文件，或重装时再次被提升进程污染）。
+
+**两层防护**：
+
+1. **预防**：新版以管理员（root）模式跑完 `pvm setup` 后，会自动把 `~/.pvm`
+   所有权归还给当前用户（Windows `icacls /setowner`、Unix `chown -R`），
+   之后普通终端永远可写，不会复发。
+2. **自愈**：存量污染用 `pvm repair-owner` 一次修复：
+
+```bash
+pvm repair-owner
+# Windows：检测到污染 → 弹 UAC → icacls 归还所有权 → 自动复验
+# macOS / Linux：检测到污染 → 提示 sudo pvm repair-owner → chown -R 归还
+```
+
+修复完成后，用普通权限终端重装包即可，无需再以管理员打开 IDE / 终端。
 
 ### 单二进制
 

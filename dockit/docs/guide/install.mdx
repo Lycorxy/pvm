@@ -131,6 +131,7 @@ Move-Item "$env:USERPROFILE\Downloads\pvm-windows-amd64.exe" "$env:USERPROFILE\.
 | ---- | -------- | ---- |
 | `--version vX.Y.Z` / `-Version vX.Y.Z` | `PVM_INSTALL_VERSION` | 安装指定版本（默认最新） |
 | `--source auto\|gitee\|github` / `-Source ...` | `PVM_INSTALL_SOURCE` | 指定下载源（默认 auto：Gitee 优先，失败回退 GitHub） |
+| `-Scope user\|admin`（Windows） | `PVM_INSTALL_SCOPE` | `user`（默认）不弹 UAC，仅用户级 PATH；`admin` 自动提权重跑，额外把 pvm shims 前置到**系统 PATH**，结束时自动归还文件所有权 |
 | — | `PVM_HOME` | 自定义安装根目录（默认 `~/.pvm`） |
 | — | `PVM_REQUIRE_CHECKSUM=1` | Release 缺少 `checksums.txt` 时安装失败（默认仅警告） |
 | — | `PVM_NO_MODIFY_PROFILE=1`（Unix）/ `PVM_NO_MODIFY_PATH=1`（Windows） | 不修改 shell 配置 / 用户 PATH |
@@ -205,6 +206,16 @@ pvm setup
 - 创建 `versions/`、`installs/`、`shims/` 子目录。
 - 把 `~/.pvm/shims` 与 `~/.pvm/bin` 加入用户 PATH。
 - 如果系统 PATH 中有 nvm/node/python 等冲突路径，**报告冲突**；手动运行 `pvm setup` 时可选择以管理员权限把 pvm shims 前置到系统 PATH（一键安装默认不提权，仅修改用户级 PATH）。
+- **文件所有权守护**：以管理员（Windows）/ sudo（macOS、Linux）模式跑完 setup 后，自动把 `~/.pvm` 所有权归还给当前用户，保证之后普通权限的终端 / IDE 一切可用，不会出现"管理员装完、普通权限装包失败"的问题。
+
+:::tip 管理员还是普通用户？
+日常开发用默认方式即可，全程不需要管理员权限。需要 pvm 压过系统级安装的
+node / nvm（对所有用户生效）时，用 `pvm setup --scope admin`（Windows）；
+一键安装脚本对应 `-Scope admin`。即使以管理员安装，文件所有权也会自动
+归还给你的账户，普通权限终端不受影响。
+:::
+
+如果曾经用管理员 / sudo 安装导致普通终端装包失败，运行 `pvm repair-owner` 一次即可修复，详见 [故障排查](/faq/troubleshooting)。
 
 ## 检查 PATH
 

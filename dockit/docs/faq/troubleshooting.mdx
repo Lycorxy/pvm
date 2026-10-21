@@ -7,6 +7,7 @@ description: PVM 常见故障与对应排查命令。
 
 | 现象 | 可能原因 | 排查 / 解决 |
 | ---- | -------- | ----------- |
+| 普通终端装包**永远失败**，用管理员身份打开才成功 | 曾以管理员运行安装器 / `pvm setup` / `pvm install`，`~/.pvm` 下的文件归 Administrators 所有，普通权限进程写不进去（删除重装也无效，普通权限删不掉这些文件） | 运行 `pvm repair-owner`（弹 UAC 修复一次），之后用**普通权限**终端重装包即可。新版以管理员跑 `pvm setup` 会自动把文件所有权归还给当前用户，不会再复发 |
 | `pvm` 命令找不到 | PATH 未包含 shims | `pvm setup-path` 并检查用户 PATH |
 | `node` 仍是系统 / nvm 旧版本 | 系统 PATH 中有 `D:\node` 等覆盖了 pvm shims | 重跑 `pvm setup`，确认 UAC 后把 pvm shims **前置到系统 PATH 最前**；不想提权用 `pvm setup --no-elevate` 仅报告冲突 |
 | `pvm use node@18` 后 `node -v` 没变 | IDE 缓存了旧的 PATH | **完全退出 IDE 再重开**（不要只用 reload window） |
@@ -28,6 +29,7 @@ VSCode / CodeBuddy 等编辑器在启动时读一次 PATH 并缓存。切换版�
 ```bash
 pvm doctor                  # 安装健康度
 pvm setup-path              # PATH 检查
+pvm repair-owner            # 修复 ~/.pvm 文件所有权（管理员装完普通权限装包失败）
 pvm reshim                  # 重建 shim
 pvm which <cmd>             # 命令真实路径
 pvm diagnostics <runtime>   # 某运行时解析链路

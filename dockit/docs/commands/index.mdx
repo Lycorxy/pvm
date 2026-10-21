@@ -36,8 +36,9 @@ PVM 是一个 CLI 工具，语法为 `pvm <command> [arguments] [flags]`。
 | [`config, cfg`](/commands/config) | 项目与系统 | 管理 `.pvmrc` |
 | [`run`](#流水线pvmyaml) | 项目与系统 | 执行 `pvm.yaml` 声明的流水线 `[--list\|--dry-run]` |
 | [`pack`](#二进制打包pvm-pack) | 二进制打包 | 默认跨平台全量打包为单可执行文件；`--platform` 指定单目标（Node≥20 SEA / Python PyInstaller / go build） |
-| [`setup`](/commands/setup) | 项目与系统 | 首次初始化 |
+| [`setup`](/commands/setup) | 项目与系统 | 首次初始化 `--scope user\|admin` |
 | [`setup-path`](/commands/setup) | 项目与系统 | 检查并修复 PATH |
+| [`repair-owner`](/commands/setup#文件所有权守护repair-owner) | 项目与系统 | 修复 `~/.pvm` 文件所有权（管理员/sudo 装完普通权限装包失败） |
 | [`doctor`](/commands/setup) | 项目与系统 | 检查安装健康度 |
 | [`validate`](/commands/doctor-more) | 项目与系统 | 校验 shim 与版本一致性 |
 | [`diagnostics`](/commands/doctor-more) | 项目与系统 | 某运行时的详细诊断 |
