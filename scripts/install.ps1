@@ -9,7 +9,7 @@
   irm https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.ps1 | iex
 
 .EXAMPLE
-  $env:PVM_INSTALL_VERSION = 'v0.0.1'
+  $env:PVM_INSTALL_VERSION = 'v0.0.2'
   $env:PVM_INSTALL_SOURCE = 'github'
   irm https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.ps1 | iex
 

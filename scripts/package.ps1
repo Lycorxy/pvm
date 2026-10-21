@@ -46,7 +46,11 @@ foreach ($pkg in $packages) {
     $outFile = "pvm-v$Version-$os-$arch.zip"
     $outPath = Join-Path $PackagesDir $outFile
     Compress-Archive -Path "$tmpDir\*" -DestinationPath $outPath -Force
-    Remove-Item $tmpDir -Recurse -Force
+    # 清理临时目录：失败（如被杀软/索引器占用）只警告，不中止后续平台打包
+    Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path $tmpDir) {
+        Write-Host "    [WARN] could not remove temp dir $tmpDir (locked?); package is complete" -ForegroundColor Yellow
+    }
     Write-Host "    ✓ $outFile ($([math]::Round((Get-Item $outPath).Length/1KB, 1)) KB)" -ForegroundColor Green
 }
 

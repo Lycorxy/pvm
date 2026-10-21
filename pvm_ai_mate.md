@@ -137,7 +137,7 @@ pvm 官方 skill 让 AI 助手获得环境自诊断能力。跨平台 harness �
 
 ```
 [pvm] windows | cwd=D:\my-app | PVM_HOME=C:\Users\me\.pvm
-[1] pvm 安装 → ✅ pvm 0.2.0
+[1] pvm 安装 → ✅ pvm 0.0.2
 [2] shims PATH → ✅ ~/.pvm/shims 已在 PATH
 [3] nvm 干扰 → ✅ nvm 存在，node 已由 pvm 接管
 [4] pvm doctor → ✅ 全部检查通过

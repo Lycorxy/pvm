@@ -61,6 +61,10 @@ pvm = Polyglot Version Manager：单二进制，用 shim 机制统一管理 node
 | 国际网络 | 把 gitee.com/lycorxy 换成 raw.githubusercontent.com/Lycorxy（master 分支） |
 
 - 安装后：新开终端 → `pvm --version` 出版本即成功；首次跑 `pvm setup`（目录+PATH+shims）。
+- 安装方式选择（Windows）：`pvm setup --scope user|admin`。`user`（默认）全程无需管理员；
+  `admin` 弹 UAC 提权重跑，额外把 pvm shims 前置到系统 PATH。一键安装脚本对应 `-Scope admin`。
+- **文件所有权守护**：以管理员（Windows）/ sudo（Unix）跑完 setup 会自动把 `~/.pvm`
+  所有权归还给当前用户；历史污染用 `pvm repair-owner` 一次修复（详见排障节）。
 - Apple Silicon / ARM：安装脚本自动识别架构，无需选择。
 - 升级：`pvm self-update`。
 - 卸载：`pvm uninstall`（会列 PATH 条目需重启终端生效；不会删运行时数据时按提示确认）。
@@ -165,4 +169,5 @@ pvm pack python --entry <main.py> [--output <path>] [--platform <t>]
 | 环境整体不明 | `pvm doctor`（7 项体检）+ `pvm diagnostics <rt>` |
 | 下载 403/慢 | 默认已走国内镜像；`--official` 切官方源，反之亦然 |
 | `pvm run` 提示 Unknown command: run | pvm 版本过旧 → `pvm self-update` 或重装 |
+| **普通终端装包永远失败，管理员身份打开就成功**（删除重装也无效） | 曾用管理员（Windows）/ sudo（Unix）安装或装包，`~/.pvm` 下文件归 Administrators/root 所有，普通权限写不进去 → `pvm repair-owner` 一次修复（Windows 弹 UAC 自动修+复验；Unix 提示 `sudo pvm repair-owner`），之后用**普通权限**重装包；新版管理员模式 setup 会自动归还所有权，不会复发 |
 | PATH 修复不生效 | PATH 在进程启动时读取：新开终端 / 重启 IDE / 重启机器（系统级 PATH 时） |

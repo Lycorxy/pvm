@@ -91,6 +91,7 @@ max-token: 2000
 | `pvm run --list` 失败但 pvm.yaml 存在 | pvm 版本过旧（无 run 命令）→ `pvm self-update` 后重验 |
 | doctor 修不动 | 透传 doctor 输出，按 references/pvm-guide.md「排障」节逐项处理 |
 | 网络 403/超时 | gitee 镜像失败换 github 源（见 references/pvm-guide.md「安装」节） |
+| 普通终端装包永远失败、管理员身份打开才成功 | 曾用管理员/sudo 装过 pvm，`~/.pvm` 文件所有权被污染 → `pvm repair-owner`（Windows 弹 UAC；Unix 提示 sudo）一次修复，之后**普通权限**重装即可（见 references/pvm-guide.md「排障」节） |
 | 用户想卸载 pvm | `pvm uninstall`（详见 references/pvm-guide.md），卸载后跑 check 确认 |
 
 ## 验证清单

@@ -4,7 +4,7 @@
 # Usage:
 #   curl -fsSL https://gitee.com/lycorxy/pvm/raw/master/scripts/install.sh | bash
 #   curl -fsSL https://raw.githubusercontent.com/Lycorxy/pvm/master/scripts/install.sh | bash
-#   curl -fsSL .../install.sh | bash -s -- --version v0.0.1 --source github
+#   curl -fsSL .../install.sh | bash -s -- --version v0.0.2 --source github
 #
 # Environment overrides:
 #   PVM_HOME                  install root (default: $HOME/.pvm)

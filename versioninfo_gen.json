@@ -22,12 +22,12 @@
         "Comments": "PVM - Polyglot Version Manager",
         "CompanyName": "pvm",
         "FileDescription": "PVM - Polyglot Version Manager",
-        "FileVersion": "v0.2.0",
+        "FileVersion": "v0.0.2",
         "InternalName": "pvm",
         "LegalCopyright": "Copyright 2024-2026 pvm contributors. MIT License.",
         "OriginalFilename": "pvm.exe",
         "ProductName": "PVM",
-        "ProductVersion": "v0.2.0"
+        "ProductVersion": "v0.0.2"
     },
     "VarFileInfo": {
         "Translation": {
