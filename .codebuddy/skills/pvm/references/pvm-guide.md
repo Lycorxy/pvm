@@ -128,6 +128,8 @@ release:
 ```
 
 - 叶子 = 命令列表（多步）或单字符串（单步），**原样执行**；同一 shell 会话顺序跑，工作目录 = pvm.yaml 所在目录。
+- Shell：Unix 用 bash；Windows 优先 pwsh（PowerShell 7），未装回退 5.1——5.1 不支持 `&&`/`||`，pvm 执行前会报错并给改法（装 pwsh / 拆步骤 / 用 `;`）。
+- 跨平台约定：压缩用 `tar -czf`（各平台自带，Windows 无 zip 命令）；串联命令拆成多步最稳；node 项目可用 npm-run-all（run-s/run-p）串并多命令。
 - 执行前自动安装并激活 .pvmrc 声明的运行时版本——流水线里无需写环境安装命令。
 - 运行：`pvm run --list`（列出全部）、`pvm run dev:all`、`pvm run release:pro --dry-run`（只打印计划）。
 - 后台作业（`&`）：末尾等待全部结束，任一失败即报错；Ctrl+C 全部停止。
@@ -171,3 +173,5 @@ pvm pack python --entry <main.py> [--output <path>] [--platform <t>]
 | `pvm run` 提示 Unknown command: run | pvm 版本过旧 → `pvm self-update` 或重装 |
 | **普通终端装包永远失败，管理员身份打开就成功**（删除重装也无效） | 曾用管理员（Windows）/ sudo（Unix）安装或装包，`~/.pvm` 下文件归 Administrators/root 所有，普通权限写不进去 → `pvm repair-owner` 一次修复（Windows 弹 UAC 自动修+复验；Unix 提示 `sudo pvm repair-owner`），之后用**普通权限**重装包；新版管理员模式 setup 会自动归还所有权，不会复发 |
 | PATH 修复不生效 | PATH 在进程启动时读取：新开终端 / 重启 IDE / 重启机器（系统级 PATH 时） |
+| 同一环境多项目并发，git 提交人串了 | 各仓库 `git config user.name/email`（**--local 优先于 global**，仓库间天然隔离）；pvm 不管 git 身份 |
+| `pvm run` 报 uses '&&' or '\|\|' ... PowerShell 5.1 | 未装 PowerShell 7 → `winget install Microsoft.PowerShell`（pvm 自动优先用 pwsh），或拆步骤 / 用 `;` |

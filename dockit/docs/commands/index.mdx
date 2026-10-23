@@ -70,7 +70,7 @@ build:
     - pnpm i
     - npm run build:pro
     - cd dist
-    - zip -q -r ./release-pro.zip ./*
+    - tar -czf ./release-pro.tar.gz ./*
 pkg:
   go:
     pro:
@@ -88,6 +88,8 @@ release:
 | 引用 | `"@名字"` 引用其他流水线，递归展开，循环引用报错（`@` 是 YAML 保留字符，须加引号） |
 | 后台并行 | `"&名字"` 或 `"&@名字"` 后台并行执行（用于 dev 服务器），末尾等待全部后台作业；任一失败即报错（`&` 同样须加引号） |
 | 执行 | 同一 shell 会话顺序执行；工作目录 = `pvm.yaml` 所在目录（`cd` 相对它解析，效果保留），任一步失败即停 |
+| Shell | Unix 用 bash；Windows 优先 PowerShell 7（`pwsh`），未安装回退 5.1——5.1 不支持 `&&`/`\|\|` 串联，执行前会明确报错并给出改法（装 pwsh / 拆步骤） |
+| 跨平台写法 | 压缩用 `tar -czf`（各平台自带）；串联命令拆成多步最稳；node 项目串/并多命令可用 [npm-run-all](https://www.npmjs.com/package/npm-run-all)（`run-s` 串行 / `run-p` 并行，纯 JS 实现不依赖系统 shell 语法）；避免依赖某平台独有的命令 |
 | 查找 | 从当前目录**向上**查找最近的 `pvm.yaml`（`pvm.yml` 兜底）；monorepo 根目录放一个即可，子目录直接跑 |
 
 ```bash
