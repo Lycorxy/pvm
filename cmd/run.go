@@ -313,7 +313,20 @@ func spawnScript(cmds []string, workDir string) (*exec.Cmd, func(), error) {
 
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", tmp.Name())
+		shell, legacy := windowsPipelineShell()
+		if legacy {
+			if step, ok := findUnsupportedChainOperator(cmds); ok {
+				cleanup()
+				return nil, nil, fmt.Errorf(
+					"step %q uses '&&' or '||', which Windows PowerShell 5.1 does not support\n"+
+						"  Fix any of:\n"+
+						"    1. Install PowerShell 7 (winget install Microsoft.PowerShell) — pvm will use it automatically\n"+
+						"    2. Split the command into multiple steps in pvm.yaml (one command per line)\n"+
+						"    3. Chain with ';' (no failure propagation)",
+					step)
+			}
+		}
+		cmd = exec.Command(shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", tmp.Name())
 	} else {
 		shell := "sh"
 		if _, err := exec.LookPath("bash"); err == nil {
@@ -327,6 +340,28 @@ func spawnScript(cmds []string, workDir string) (*exec.Cmd, func(), error) {
 	cmd.Stdin = os.Stdin
 	cmd.Dir = workDir
 	return cmd, cleanup, nil
+}
+
+// windowsPipelineShell 返回 Windows 流水线使用的 PowerShell 可执行文件。
+// 优先 pwsh（PowerShell 7+，原生支持 && / || 串联运算符）；
+// 仅当未安装 pwsh 时回退 Windows PowerShell 5.1（legacy，不支持 && / ||）。
+func windowsPipelineShell() (shell string, legacy bool) {
+	if _, err := exec.LookPath("pwsh"); err == nil {
+		return "pwsh", false
+	}
+	return "powershell", true
+}
+
+// findUnsupportedChainOperator 查找 PowerShell 5.1 不支持的串联运算符
+// （&& / ||），返回第一个命中的命令。简单子串匹配，可能对引号内/URL 中
+// 的 && 误报——此时按报错提示改写写法即可。
+func findUnsupportedChainOperator(cmds []string) (string, bool) {
+	for _, c := range cmds {
+		if strings.Contains(c, "&&") || strings.Contains(c, "||") {
+			return c, true
+		}
+	}
+	return "", false
 }
 
 // buildScriptContent 生成平台脚本：每步前打印 [i/N] 标记；任一步非零退出即终止
