@@ -97,7 +97,7 @@ func runSelfUpdate(args []string) error {
 
 func fetchLatestTag(repo string) (string, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
-	url := fmt.Sprintf("https://gitee.com/api/v3/repos/%s/releases/latest", repo)
+	url := fmt.Sprintf("https://gitee.com/api/v5/repos/%s/releases/latest", repo)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "pvm")
