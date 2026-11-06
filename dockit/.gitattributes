@@ -1,9 +1,6 @@
-pnpm-lock.yaml               merge=text
-*.*  text eol=lf
-core.safecrlf = true
-*text=auto
-*eol=lf
+* text=auto eol=lf
 *.jpg -text
 *.png -text
 *.pdf -text
 *.svg -text
+pnpm-lock.yaml text eol=lf
