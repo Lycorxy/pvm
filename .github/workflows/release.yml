@@ -1,0 +1,76 @@
+# pvm 自动发布：push tag（v*）即自动构建 6 平台产物并创建 Release
+#
+# 用法：
+#   git tag v0.0.3 && git push origin v0.0.3
+#
+# 产物（自动上传到 Release）：
+#   pvm-{windows,darwin,linux}-{amd64,arm64}[.exe]   裸二进制（install 脚本直接下载）
+#   pvm-{tag}-{os}-{arch}.zip                        发布包（含 pvm/LICENSE/README）
+#   pvm-env-manager.zip                              CodeBuddy skill 发布包
+#   checksums.txt                                    全部资产 SHA-256
+#
+# 版本号说明：二进制版本通过 -ldflags 注入为 tag 名（去掉 v 前缀），
+# 与 Release tag 天然一致，无需再改源码中的 Version。
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build all platforms
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          LDFLAGS="-s -w -X github.com/pvm/pvm/cmd.Version=${VERSION}"
+          mkdir -p dist/packages
+          for plat in windows-amd64 windows-arm64 darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
+            os="${plat%-*}"; arch="${plat#*-}"
+            ext=""; [ "$os" = "windows" ] && ext=".exe"
+            echo "==> building $plat"
+            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 \
+              go build -trimpath -ldflags "$LDFLAGS" -o "dist/pvm-$plat$ext" .
+            stage="pkg/pvm-$plat"
+            mkdir -p "$stage"
+            cp "dist/pvm-$plat$ext" "$stage/pvm$ext"
+            cp LICENSE README.md "$stage/" 2>/dev/null || true
+            (cd "$stage" && zip -q -r "../../dist/packages/pvm-${TAG}-$plat.zip" .)
+          done
+
+      - name: Pack CodeBuddy skill
+        run: |
+          mkdir -p pkg-skill
+          cp -r .codebuddy/skills/pvm pkg-skill/pvm
+          (cd pkg-skill && zip -q -r "../dist/packages/pvm-env-manager.zip" pvm)
+
+      - name: Generate checksums
+        working-directory: dist/packages
+        run: sha256sum * > checksums.txt
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/pvm-windows-amd64.exe
+            dist/pvm-windows-arm64.exe
+            dist/pvm-darwin-amd64
+            dist/pvm-darwin-arm64
+            dist/pvm-linux-amd64
+            dist/pvm-linux-arm64
+            dist/packages/*.zip
+            dist/packages/checksums.txt
