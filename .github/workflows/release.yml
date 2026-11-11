@@ -74,3 +74,39 @@ jobs:
             dist/pvm-linux-arm64
             dist/packages/*.zip
             dist/packages/checksums.txt
+
+      # 可选：双平台同步到 Gitee。在仓库 Settings → Secrets 配置 GITEE_TOKEN
+      # （Gitee → 设置 → 私人令牌，勾选 projects 权限）后自动生效；未配置则跳过。
+      - name: Sync to Gitee
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -z "${GITEE_TOKEN:-}" ]; then
+            echo "GITEE_TOKEN 未配置，跳过 Gitee 同步（GitHub 已发布）"
+            exit 0
+          fi
+          REPO="lycorxy/pvm"
+          API="https://gitee.com/api/v5/repos/$REPO"
+
+          # 创建 release（已存在则 API 报错，转查询）
+          rel=$(curl -sS -X POST "$API/releases" \
+            -H "Content-Type: application/json" \
+            -d "{\"access_token\":\"$GITEE_TOKEN\",\"tag_name\":\"$TAG\",\"name\":\"pvm $TAG\",\"target_commitish\":\"master\"}" || true)
+          id=$(echo "$rel" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+          if [ -z "$id" ]; then
+            id=$(curl -sS "$API/releases/tags/$TAG?access_token=$GITEE_TOKEN" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+          fi
+          if [ -z "$id" ]; then
+            echo "::warning::无法创建/获取 Gitee release，跳过同步"
+            exit 0
+          fi
+          echo "Gitee release id=$id"
+
+          fail=0
+          for f in dist/pvm-* dist/packages/pvm-${TAG}-*.zip dist/packages/pvm-env-manager.zip dist/packages/checksums.txt; do
+            [ -f "$f" ] || continue
+            echo "上传 $(basename "$f")"
+            curl -sS -X POST "$API/releases/$id/attach_files?access_token=$GITEE_TOKEN" -F "file=@$f" > /dev/null || { echo "::warning::上传失败: $f"; fail=1; }
+          done
+          exit $fail

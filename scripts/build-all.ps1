@@ -19,11 +19,20 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 
 # ────────────────────────────────────────
 # 1. 确定版本号
+# 优先级：-Version 参数 > 仓库根目录 VERSION 文件 > cmd/root.go 里的硬编码（兜底）
 # ────────────────────────────────────────
+if (-not $Version) {
+    $versionFile = Join-Path $ProjectRoot "VERSION"
+    if (Test-Path $versionFile) {
+        $Version = (Get-Content $versionFile -Raw).Trim()
+        Write-Host "Version source : VERSION file" -ForegroundColor DarkGray
+    }
+}
 if (-not $Version) {
     $rootGo = Get-Content (Join-Path $ProjectRoot "cmd/root.go") -Raw -ErrorAction SilentlyContinue
     if ($rootGo -match 'Version\s*=\s*"([^"]+)"') {
         $Version = $Matches[1]
+        Write-Host "Version source : cmd/root.go (fallback)" -ForegroundColor DarkGray
     } else {
         $Version = "0.0.0"
     }
@@ -74,12 +83,13 @@ foreach ($p in $platforms) {
     $env:GOOS   = $p.GOOS
     $env:GOARCH = $p.GOARCH
 
-    # 编译 pvm 主程序
+    # 编译 pvm 主程序（ldflags 注入版本号：构建产物版本 = VERSION 文件，与 tag/资产一致）
     $outputName = "pvm-$($p.GOOS)-$($p.GOARCH)$($p.Ext)"
     $outputPath = Join-Path $DistDir $outputName
 
     Write-Host "  Building $($p.Suffix)..." -ForegroundColor Gray -NoNewline
-    $buildOut = go build -o $outputPath . 2>&1
+    $ldFlags = "-s -w -X github.com/pvm/pvm/cmd.Version=$Version"
+    $buildOut = go build -trimpath -ldflags $ldFlags -o $outputPath . 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host " FAILED" -ForegroundColor Red
         Write-Host "    $buildOut" -ForegroundColor DarkRed
