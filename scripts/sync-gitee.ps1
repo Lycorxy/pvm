@@ -25,9 +25,24 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 if (-not $DistDir) { $DistDir = Join-Path $ProjectRoot "dist" }
 $PackagesDir = Join-Path $DistDir "packages"
 
+# 令牌优先级：-Token 参数 → GITEE_TOKEN 环境变量 → ~/.release.yaml（release-init.ps1 生成）
 if (-not $Token) {
-    Write-Host "error: 需要 Gitee 私人令牌。设置 `$env:GITEE_TOKEN 或传 -Token 参数" -ForegroundColor Red
-    Write-Host "  令牌获取: Gitee → 头像 → 设置 → 私人令牌 → 勾选 projects/releases 权限"
+    $cfgPath = Join-Path $env:USERPROFILE ".release.yaml"
+    if (Test-Path $cfgPath) {
+        $sec = $null
+        foreach ($line in (Get-Content $cfgPath)) {
+            if ($line -match '^gitee:') { $sec = 'gt' }
+            elseif ($line -match '^\s+token:\s*(.*)$') {
+                if ($sec -eq 'gt') { $Token = $Matches[1].Trim().Trim('"'); break }
+            }
+        }
+    }
+}
+if (-not $Token) {
+    Write-Host "error: 需要 Gitee 私人令牌。三选一：" -ForegroundColor Red
+    Write-Host "  1. 运行 .\scripts\release-init.ps1 一次性配置（推荐，存 ~/.release.yaml）"
+    Write-Host "  2. `$env:GITEE_TOKEN = '令牌'"
+    Write-Host "  3. -Token 参数"
     exit 1
 }
 

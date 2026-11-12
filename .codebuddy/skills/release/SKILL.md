@@ -21,10 +21,21 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 2. `git log v<上一个tag>..HEAD --oneline`（无旧 tag 时取最近 20 条）生成发布说明草稿
 3. 向用户确认：版本号、发布说明（用户可修改）——确认后才继续
 
-### Step 2：提交推送 master
+### Step 0：环境初始化检查（一次性）
+
+1. 检查 `%USERPROFILE%\.release.yaml` 是否存在
+2. 不存在 → 引导用户运行 `.\scripts\release-init.ps1`，交互粘贴 GitHub/Gitee 令牌：
+   自动写入 `~/.release.yaml` + 配置 `git remote gitee` + 自动配置 GitHub Actions Secret
+   （GITEE_TOKEN，供 workflow 同步 Gitee）
+3. 已存在 → 继续后续步骤（所有脚本自动读取，无需再粘贴令牌）
+
+### Step 2：提交推送 master（双远端）
 
 1. `git status --short` 有未提交改动 → 按变更内容分组提交（禁止把无关文件混入）
-2. `git push origin master`
+2. **走 harness**（自动推 origin + gitee 双远端）：
+   ```powershell
+   .codebuddy\skills\release\scripts\release-harness.ps1 push
+   ```
 3. 失败 → 原样透传错误，停止流程
 
 ### Step 3：发版前置检查 + 创建并推送 tag
@@ -48,23 +59,16 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 2. 未登录 gh → 提示用户查看 `https://github.com/Lycorxy/pvm/actions`，等待构建完成（约 1-2 分钟）
 3. 构建失败 → 透传 Actions 日志链接与错误，停止流程
 
-### Step 5：Gitee 同步（令牌二选一）
+### Step 5：Gitee 同步（自动）
 
-**占位符说明：`__GITEE_TOKEN__` 与 `__GH_TOKEN__` 是预留位置，由用户复制粘贴真实令牌替换。**
-
-- 方式 A（已配 GitHub Secret）：仓库 Settings → Secrets 已配置 `GITEE_TOKEN` →
-  Actions 在 Step 3 已自动同步 Gitee，本步骤跳过
-- 方式 B（本地同步）：
+- 方式 A（已配 GitHub Secret，init 自动配置）：Actions 在 Step 3 已自动同步 Gitee，
+  本步骤用 Step 6 的 verify 确认即可
+- 方式 B（本地同步，令牌自动从 `~/.release.yaml` 读取）：
   ```powershell
-  $env:GITEE_TOKEN = '__GITEE_TOKEN__'   # ← Gitee → 设置 → 私人令牌（勾选 projects），用户粘贴替换
   .\scripts\sync-gitee.ps1 -Notes '<Step 1 的发布说明>'
   ```
-- `gh` CLI 令牌（可选，用于 Step 6 的 API 查询）：
-  ```powershell
-  $env:GH_TOKEN = '__GH_TOKEN__'         # ← GitHub → Settings → Developer settings → Personal access tokens
-  ```
-- **安全规则**：令牌只写入当前会话环境变量，禁止写入任何文件、禁止出现在提交内容中；
-  用户粘贴的令牌在播报中必须脱敏（只显示前 4 位）。
+- **安全规则**：令牌保存在 `~/.release.yaml`（用户主目录，不进仓库）；
+  播报中必须脱敏（只显示前 4 位）；禁止把令牌写入任何提交内容。
 
 ### Step 6：双平台验证（闭环，最多 2 轮）
 
@@ -82,6 +86,7 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 ✅ v$VERSION 发布完成
    GitHub: https://github.com/Lycorxy/pvm/releases/tag/v$VERSION
    Gitee:  https://gitee.com/lycorxy/pvm/releases/tag/v$VERSION
+   文档站: GitHub Pages（Actions Deploy Docs job 的 URL）/ Gitee Pages（gh-pages 分支）
    资产: 14 个（6 二进制 + 6 zip + skill 包 + checksums.txt）
    双平台验证: ✅ 一致
 ```

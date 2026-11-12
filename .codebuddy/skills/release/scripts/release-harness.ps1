@@ -33,6 +33,26 @@ function Read-VersionFromFile {
     return ((Get-Content $vf -Raw).Trim())
 }
 
+# 读取 ~/.release.yaml（release-init.ps1 生成）：github.token / gitee.token / gitee.remote
+function Read-ReleaseConfig {
+    $cfgPath = Join-Path $env:USERPROFILE ".release.yaml"
+    $cfg = @{ ghToken = ""; giteeToken = ""; giteeRemote = "" }
+    if (-not (Test-Path $cfgPath)) { return $cfg }
+    $sec = $null
+    foreach ($line in (Get-Content $cfgPath)) {
+        if ($line -match '^github:') { $sec = 'gh' }
+        elseif ($line -match '^gitee:') { $sec = 'gt' }
+        elseif ($line -match '^\s+token:\s*(.*)$') {
+            if ($sec -eq 'gh') { $cfg.ghToken = $Matches[1].Trim().Trim('"') }
+            elseif ($sec -eq 'gt') { $cfg.giteeToken = $Matches[1].Trim().Trim('"') }
+        }
+        elseif ($line -match '^\s+remote:\s*(.*)$') {
+            if ($sec -eq 'gt') { $cfg.giteeRemote = $Matches[1].Trim().Trim('"') }
+        }
+    }
+    return $cfg
+}
+
 # ---------- check-tag：发版前置检查 ----------
 function Invoke-CheckTag {
     if (-not $Version) { $Version = Read-VersionFromFile }
@@ -77,6 +97,10 @@ function Invoke-CheckTag {
 # ---------- actions-status：最新 workflow run 状态 ----------
 function Invoke-ActionsStatus {
     Write-Host "[pvm-release actions-status]"
+    # ~/.release.yaml 有 GitHub token 时直接注入 gh（无需 gh auth login）
+    $cfg = Read-ReleaseConfig
+    if ($cfg.ghToken -and -not $env:GH_TOKEN) { $env:GH_TOKEN = $cfg.ghToken }
+
     $ghOk = $false
     try {
         $null = & gh auth status 2>&1
@@ -87,9 +111,37 @@ function Invoke-ActionsStatus {
         & gh run list --repo $Repo --limit 3
         exit $(if ($LASTEXITCODE -eq 0) { 0 } else { 1 })
     }
-    Write-Host "  gh 未登录，无法查询 API → 请网页查看："
+    Write-Host "  gh 不可用（未登录且 ~/.release.yaml 无 github.token）→ 请网页查看："
     Write-Host "  https://github.com/$Repo/actions"
+    Write-Host "  或运行 .\scripts\release-init.ps1 完成初始化"
     exit 2
+}
+
+# ---------- push：双远端推送（GitHub origin + Gitee gitee） ----------
+function Invoke-Push {
+    Push-Location $ProjectRoot
+    try {
+        $cfg = Read-ReleaseConfig
+        $remotes = (git remote | Out-String)
+        $hasGitee = $remotes -match '(^|\s)gitee(\s|$)'
+
+        Write-Host "  → push origin master"
+        git push origin master
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+
+        if ($hasGitee) {
+            Write-Host "  → push gitee master"
+            git push gitee master
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "⚠️ gitee 推送失败（凭证问题可跑 .\scripts\release-init.ps1 重新配置）"
+                exit 1
+            }
+        } else {
+            Write-Host "  ℹ 无 gitee 远端：运行 .\scripts\release-init.ps1 配置后自动双推"
+        }
+        Write-Host "✓ 推送完成"
+        exit 0
+    } finally { Pop-Location }
 }
 
 # ---------- verify：双平台资产验证 ----------
@@ -169,8 +221,9 @@ switch ($Action) {
     "check-tag"      { Invoke-CheckTag }
     "actions-status" { Invoke-ActionsStatus }
     "verify"         { Invoke-VerifyImpl }
+    "push"           { Invoke-Push }
     default {
-        Write-Host "用法: release-harness.ps1 check-tag|actions-status|verify [-Version x.y.z] [-Platform windows-amd64]"
+        Write-Host "用法: release-harness.ps1 check-tag|actions-status|verify|push [-Version x.y.z] [-Platform windows-amd64]"
         exit 2
     }
 }
