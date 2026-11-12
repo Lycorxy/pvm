@@ -24,7 +24,8 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 ### Step 0：环境初始化检查（一次性）
 
 1. 检查 `%USERPROFILE%\.release.yaml` 是否存在
-2. 不存在 → 引导用户运行 `.\scripts\release-init.ps1`，交互粘贴 GitHub/Gitee 令牌：
+2. 不存在 → 引导用户运行（交互粘贴 GitHub/Gitee 令牌）：
+   `node .codebuddy/skills/release/scripts/release-harness.cjs init`
    自动写入 `~/.release.yaml` + 配置 `git remote gitee` + 自动配置 GitHub Actions Secret
    （GITEE_TOKEN，供 workflow 同步 Gitee）
 3. 已存在 → 继续后续步骤（所有脚本自动读取，无需再粘贴令牌）
@@ -33,16 +34,16 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 
 1. `git status --short` 有未提交改动 → 按变更内容分组提交（禁止把无关文件混入）
 2. **走 harness**（自动推 origin + gitee 双远端）：
-   ```powershell
-   .codebuddy\skills\release\scripts\release-harness.ps1 push
+   ```bash
+   node .codebuddy/skills/release/scripts/release-harness.cjs push
    ```
 3. 失败 → 原样透传错误，停止流程
 
 ### Step 3：发版前置检查 + 创建并推送 tag
 
 1. **前置检查（必须走 harness）**：
-   ```powershell
-   .codebuddy\skills\release\scripts\release-harness.ps1 check-tag -Version $VERSION
+   ```bash
+   node .codebuddy/skills/release/scripts/release-harness.cjs check-tag --version $VERSION
    ```
    检查：工作区、版本格式、本地/远端 tag 冲突、master 同步。有任何 ❌ → 先解决再继续
    （远端 tag 已存在 = 需用户确认强推）
@@ -53,8 +54,8 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 ### Step 4：监控构建
 
 1. **走 harness**：
-   ```powershell
-   .codebuddy\skills\release\scripts\release-harness.ps1 actions-status
+   ```bash
+   node .codebuddy/skills/release/scripts/release-harness.cjs actions-status
    ```
 2. 未登录 gh → 提示用户查看 `https://github.com/Lycorxy/pvm/actions`，等待构建完成（约 1-2 分钟）
 3. 构建失败 → 透传 Actions 日志链接与错误，停止流程
@@ -64,8 +65,8 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 - 方式 A（已配 GitHub Secret，init 自动配置）：Actions 在 Step 3 已自动同步 Gitee，
   本步骤用 Step 6 的 verify 确认即可
 - 方式 B（本地同步，令牌自动从 `~/.release.yaml` 读取）：
-  ```powershell
-  .\scripts\sync-gitee.ps1 -Notes '<Step 1 的发布说明>'
+  ```bash
+  node .codebuddy/skills/release/scripts/release-harness.cjs sync-gitee --notes '<Step 1 的发布说明>'
   ```
 - **安全规则**：令牌保存在 `~/.release.yaml`（用户主目录，不进仓库）；
   播报中必须脱敏（只显示前 4 位）；禁止把令牌写入任何提交内容。
@@ -73,8 +74,8 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 ### Step 6：双平台验证（闭环，最多 2 轮）
 
 1. **走 harness（自动下载比对 version + SHA-256 + 附加资产存在性）**：
-   ```powershell
-   .codebuddy\skills\release\scripts\release-harness.ps1 verify -Version $VERSION
+   ```bash
+   node .codebuddy/skills/release/scripts/release-harness.cjs verify --version $VERSION
    ```
 2. 全部 ✅ → Step 7；有 ❌ → 回到 Step 4/5 排查（常见：GitHub CDN 缓存延迟 5 分钟内可接受；
    Gitee 失败重跑 sync-gitee.ps1）
