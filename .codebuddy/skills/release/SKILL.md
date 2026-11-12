@@ -27,17 +27,25 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 2. `git push origin master`
 3. 失败 → 原样透传错误，停止流程
 
-### Step 3：创建并推送 tag（触发自动发布）
+### Step 3：发版前置检查 + 创建并推送 tag
 
-1. `git tag v$VERSION`（tag 已存在 → 向用户确认强推 `git tag -f` + `git push -f`）
-2. `git push origin v$VERSION`
-3. 这一步自动触发 `.github/workflows/release.yml`：
+1. **前置检查（必须走 harness）**：
+   ```powershell
+   .codebuddy\skills\release\scripts\release-harness.ps1 check-tag -Version $VERSION
+   ```
+   检查：工作区、版本格式、本地/远端 tag 冲突、master 同步。有任何 ❌ → 先解决再继续
+   （远端 tag 已存在 = 需用户确认强推）
+2. `git tag v$VERSION` → `git push origin master` → `git push origin v$VERSION`
+3. 推送 tag 自动触发 `.github/workflows/release.yml`：
    6 平台构建（ldflags 注入版本）→ GitHub Release 发布 → Gitee 同步（见 Step 4）
 
 ### Step 4：监控构建
 
-1. `gh auth status` 已登录 → `gh run list --limit 1` / `gh run watch` 跟踪
-2. 未登录 → 提示用户查看 `https://github.com/Lycorxy/pvm/actions`，等待构建完成（约 1-2 分钟）
+1. **走 harness**：
+   ```powershell
+   .codebuddy\skills\release\scripts\release-harness.ps1 actions-status
+   ```
+2. 未登录 gh → 提示用户查看 `https://github.com/Lycorxy/pvm/actions`，等待构建完成（约 1-2 分钟）
 3. 构建失败 → 透传 Actions 日志链接与错误，停止流程
 
 ### Step 5：Gitee 同步（令牌二选一）
@@ -60,15 +68,13 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 
 ### Step 6：双平台验证（闭环，最多 2 轮）
 
-1. 下载两边资产比对：
+1. **走 harness（自动下载比对 version + SHA-256 + 附加资产存在性）**：
+   ```powershell
+   .codebuddy\skills\release\scripts\release-harness.ps1 verify -Version $VERSION
    ```
-   GitHub: https://github.com/Lycorxy/pvm/releases/download/v$VERSION/pvm-windows-amd64.exe
-   Gitee:  https://gitee.com/lycorxy/pvm/releases/download/v$VERSION/pvm-windows-amd64.exe
-   ```
-   跑 `version`（应输出 $VERSION）+ SHA-256 与本地 `dist\pvm-windows-amd64.exe` 对比
-2. 检查 `checksums.txt`、`pvm-env-manager.zip` 两边都存在
-3. 不一致 → 回到 Step 4/5 排查（常见：GitHub CDN 缓存延迟 5 分钟内可接受；Gitee 失败重跑 sync-gitee.ps1）
-4. 两轮仍不一致 → 输出差异明细，请用户网页检查 Release 资产列表
+2. 全部 ✅ → Step 7；有 ❌ → 回到 Step 4/5 排查（常见：GitHub CDN 缓存延迟 5 分钟内可接受；
+   Gitee 失败重跑 sync-gitee.ps1）
+3. 两轮仍不一致 → 输出差异明细，请用户网页检查 Release 资产列表
 
 ### Step 7：收尾播报
 

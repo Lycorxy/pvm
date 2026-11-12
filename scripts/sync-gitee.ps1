@@ -1,4 +1,4 @@
-# pvm — 同步本地构建产物到 Gitee Release
+﻿# pvm — 同步本地构建产物到 Gitee Release
 #
 # 用法：
 #   $env:GITEE_TOKEN = '你的 Gitee 私人令牌'   # Gitee → 设置 → 私人令牌（需 releases 权限）

@@ -7,6 +7,8 @@ alwaysApply: true
   禁止修改 `cmd/root.go` 的 Version 硬编码来发版。
 - 推送 master 前必须先向用户展示将要提交的变更清单并获得确认。
 - tag 已存在时默认拒绝强推（`git tag -f`），必须用户明确确认。
+- 前置检查、Actions 监控、双平台验证必须走 `skills/release/scripts/release-harness.ps1`
+  （check-tag / actions-status / verify），禁止 AI 手拼下载与比对命令。
 - 令牌（GITEE_TOKEN / GH_TOKEN）只允许写入当前会话环境变量，
   禁止写入任何文件、禁止进入提交内容、禁止明文播报（只显示前 4 位）。
 - 发布完成后必须执行双平台验证（下载比对 version + SHA-256）形成闭环，
