@@ -1,0 +1,99 @@
+# pvm-release — 发版助手（提交推送 → 自动 tag → 自动 Release → 双平台同步）
+
+## 概述
+
+驱动 pvm 的完整发版流程：**版本号由用户通过 `VERSION` 文件定义**，AI 按本工作流执行：
+提交推送 master → 自动打 tag → GitHub Actions 自动构建并发布 GitHub Release（含 6 平台产物、
+zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证。
+
+## 🛑 入口守卫
+
+1. 在 pvm 仓库（`d:\gitfile\pvm`）内才可执行本流程；其他仓库直接拒绝。
+2. 版本号**只能由用户定义**：一切以仓库根目录 `VERSION` 文件内容为准（如 `0.0.2`）。
+   用户要求改版本 → 只改 `VERSION` 文件，禁止修改 `cmd/root.go` 的硬编码（那是开发兜底值）。
+3. tag 已存在时**默认拒绝强推**，必须向用户确认后才能 `git tag -f`。
+
+## 核心工作流
+
+### Step 1：确认版本与待发布内容
+
+1. 读 `VERSION` 文件 → `VERSION=x.x.x`
+2. `git log v<上一个tag>..HEAD --oneline`（无旧 tag 时取最近 20 条）生成发布说明草稿
+3. 向用户确认：版本号、发布说明（用户可修改）——确认后才继续
+
+### Step 2：提交推送 master
+
+1. `git status --short` 有未提交改动 → 按变更内容分组提交（禁止把无关文件混入）
+2. `git push origin master`
+3. 失败 → 原样透传错误，停止流程
+
+### Step 3：创建并推送 tag（触发自动发布）
+
+1. `git tag v$VERSION`（tag 已存在 → 向用户确认强推 `git tag -f` + `git push -f`）
+2. `git push origin v$VERSION`
+3. 这一步自动触发 `.github/workflows/release.yml`：
+   6 平台构建（ldflags 注入版本）→ GitHub Release 发布 → Gitee 同步（见 Step 4）
+
+### Step 4：监控构建
+
+1. `gh auth status` 已登录 → `gh run list --limit 1` / `gh run watch` 跟踪
+2. 未登录 → 提示用户查看 `https://github.com/Lycorxy/pvm/actions`，等待构建完成（约 1-2 分钟）
+3. 构建失败 → 透传 Actions 日志链接与错误，停止流程
+
+### Step 5：Gitee 同步（令牌二选一）
+
+**占位符说明：`__GITEE_TOKEN__` 与 `__GH_TOKEN__` 是预留位置，由用户复制粘贴真实令牌替换。**
+
+- 方式 A（已配 GitHub Secret）：仓库 Settings → Secrets 已配置 `GITEE_TOKEN` →
+  Actions 在 Step 3 已自动同步 Gitee，本步骤跳过
+- 方式 B（本地同步）：
+  ```powershell
+  $env:GITEE_TOKEN = '__GITEE_TOKEN__'   # ← Gitee → 设置 → 私人令牌（勾选 projects），用户粘贴替换
+  .\scripts\sync-gitee.ps1 -Notes '<Step 1 的发布说明>'
+  ```
+- `gh` CLI 令牌（可选，用于 Step 6 的 API 查询）：
+  ```powershell
+  $env:GH_TOKEN = '__GH_TOKEN__'         # ← GitHub → Settings → Developer settings → Personal access tokens
+  ```
+- **安全规则**：令牌只写入当前会话环境变量，禁止写入任何文件、禁止出现在提交内容中；
+  用户粘贴的令牌在播报中必须脱敏（只显示前 4 位）。
+
+### Step 6：双平台验证（闭环，最多 2 轮）
+
+1. 下载两边资产比对：
+   ```
+   GitHub: https://github.com/Lycorxy/pvm/releases/download/v$VERSION/pvm-windows-amd64.exe
+   Gitee:  https://gitee.com/lycorxy/pvm/releases/download/v$VERSION/pvm-windows-amd64.exe
+   ```
+   跑 `version`（应输出 $VERSION）+ SHA-256 与本地 `dist\pvm-windows-amd64.exe` 对比
+2. 检查 `checksums.txt`、`pvm-env-manager.zip` 两边都存在
+3. 不一致 → 回到 Step 4/5 排查（常见：GitHub CDN 缓存延迟 5 分钟内可接受；Gitee 失败重跑 sync-gitee.ps1）
+4. 两轮仍不一致 → 输出差异明细，请用户网页检查 Release 资产列表
+
+### Step 7：收尾播报
+
+```
+✅ v$VERSION 发布完成
+   GitHub: https://github.com/Lycorxy/pvm/releases/tag/v$VERSION
+   Gitee:  https://gitee.com/lycorxy/pvm/releases/tag/v$VERSION
+   资产: 14 个（6 二进制 + 6 zip + skill 包 + checksums.txt）
+   双平台验证: ✅ 一致
+```
+
+## 输出格式（精简播报）
+
+```
+[Step n] <执行了什么>
+→ ✅/❌ <结果或原因>
+→ 下一步: <命令或说明>（失败时必给）
+```
+
+## 错误处理
+
+| 现象 | 处理 |
+|------|------|
+| tag 已存在 | 默认拒绝强推；用户确认后才 `git tag -f`（会重新触发全量发布） |
+| Actions 构建失败 | 透传失败 job 链接；常见原因：测试失败、网络；修复后重打 tag（用户确认强推） |
+| GitHub CDN 缓存返回旧资产 | 下载 URL 加 `?nocache=<时间戳>` 重试；5 分钟内属正常延迟 |
+| Gitee 上传 404/401 | 令牌无效或权限不足 → 提示用户重新生成令牌（勾选 projects） |
+| 版本一致性校验失败（安装端报 tag≠binary） | 二进制版本未注入 → 检查 workflow 的 ldflags 是否生效 |

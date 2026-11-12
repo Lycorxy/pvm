@@ -1,0 +1,32 @@
+# pvm-release 触发与调度配置
+priority: 75
+auto-trigger: true
+trigger-keywords:
+  - 发版
+  - 发布版本
+  - 发布 release
+  - 创建 tag
+  - 打 tag
+  - 更新版本号
+  - 发布新版本
+  - release 上传
+  - 同步 gitee
+  - 双平台发布
+depends-on: []
+mutual-exclude:
+  - pvm
+require-tools:
+  - execute_command
+  - read_file
+  - replace_in_file
+  - write_to_file
+load-strategy: lazy
+unload-after-run: true
+max-duration: 600
+trigger-weight:
+  发版: 95
+  发布版本: 95
+  创建 tag: 90
+  打 tag: 90
+  同步 gitee: 85
+  双平台发布: 85

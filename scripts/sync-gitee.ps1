@@ -16,7 +16,8 @@ param(
     [string]$Token = $env:GITEE_TOKEN,
     [string]$Tag = "",
     [string]$Repo = "lycorxy/pvm",
-    [string]$DistDir = ""
+    [string]$DistDir = "",
+    [string]$Notes = ""    # 发布说明：创建 release 时作为描述；release 已存在时更新描述
 )
 
 $ErrorActionPreference = "Stop"
@@ -65,15 +66,23 @@ try {
     Write-Host "Gitee release 已存在 (id=$($release.id))"
 } catch {
     Write-Host "Gitee release 不存在，创建中..."
+    $releaseBody = if ($Notes) { $Notes } else { "pvm $Tag (synced by sync-gitee.ps1)" }
     $body = @{
         access_token     = $Token
         tag_name         = $Tag
         name             = "pvm $Tag"
-        body             = "pvm $Tag (synced by sync-gitee.ps1)"
+        body             = $releaseBody
         target_commitish = "master"
     } | ConvertTo-Json
     $release = Invoke-RestMethod -Uri "$api/releases" -Method Post -ContentType 'application/json' -Body $body -TimeoutSec 30
     Write-Host "已创建 Gitee release (id=$($release.id))"
+}
+
+# 已存在且指定了发布说明 → 更新描述
+if ($release -and $Notes) {
+    $patchBody = @{ access_token = $Token; body = $Notes } | ConvertTo-Json
+    Invoke-RestMethod -Uri "$api/releases/$($release.id)" -Method Patch -ContentType 'application/json' -Body $patchBody -TimeoutSec 30 | Out-Null
+    Write-Host "✓ 发布说明已更新"
 }
 
 # 3. 逐个上传（curl multipart，Windows 10+ 自带 curl.exe；PS5.1 的 Invoke-RestMethod 不支持 -Form）
