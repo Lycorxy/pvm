@@ -28,8 +28,29 @@ const https = require("https");
 const readline = require("readline");
 
 // ---------- 基础路径 ----------
-const SCRIPT_DIR = __dirname;                 // <root>/.codebuddy/skills/release/scripts
-const PROJECT_ROOT = path.resolve(SCRIPT_DIR, "..", "..", "..", "..");
+const SCRIPT_DIR = __dirname;                 // 仓库内：<root>/.codebuddy/skills/release/scripts；全局安装时：~/.pvm/bin
+// 项目根定位：PVM_RELEASE_ROOT 环境变量 > 从脚本目录向上找含 VERSION 的目录 > 从 cwd 向上找
+function findProjectRoot() {
+  if (process.env.PVM_RELEASE_ROOT && fs.existsSync(path.join(process.env.PVM_RELEASE_ROOT, "VERSION"))) {
+    return process.env.PVM_RELEASE_ROOT;
+  }
+  let dir = SCRIPT_DIR;
+  for (let i = 0; i < 10; i++) {
+    if (fs.existsSync(path.join(dir, "VERSION"))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  dir = process.cwd();
+  for (let i = 0; i < 10; i++) {
+    if (fs.existsSync(path.join(dir, "VERSION"))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return process.cwd();
+}
+const PROJECT_ROOT = findProjectRoot();
 const DIST_DIR = path.join(PROJECT_ROOT, "dist");
 const PACKAGES_DIR = path.join(DIST_DIR, "packages");
 const CONFIG_PATH = path.join(os.homedir(), ".release.yaml");
@@ -44,6 +65,7 @@ for (let i = 1; i < argv.length; i++) {
   else if (a === "--platform") opts.platform = argv[++i] || "windows-amd64";
   else if (a === "--notes") opts.notes = argv[++i] || "";
   else if (a === "--repo") opts.repo = argv[++i] || "Lycorxy/pvm";
+  else if (a === "--root") process.env.PVM_RELEASE_ROOT = argv[++i] || "";
 }
 
 let pass = 0, fail = 0;
