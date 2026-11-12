@@ -1,5 +1,20 @@
 # pvm-release — 发版助手（提交推送 → 自动 tag → 自动 Release → 双平台同步）
 
+## 快捷命令
+
+仓库根的 `release.cmd`（Windows）/ `release`（Unix）包装了 harness，任意目录可执行：
+
+```bash
+release init            # 一次性：粘贴 GitHub/Gitee 令牌 → 写 ~/.release.yaml
+release check-tag       # 发版前置检查
+release push            # 双远端推送
+release actions-status  # Actions 构建状态
+release sync-gitee      # 同步资产到 Gitee Release
+release verify          # 双平台资产验证（发布闭环）
+```
+
+等价于 `node .codebuddy/skills/release/scripts/release-harness.cjs <cmd>`。
+
 ## 概述
 
 驱动 pvm 的完整发版流程：**版本号由用户通过 `VERSION` 文件定义**，AI 按本工作流执行：
@@ -25,7 +40,7 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 
 1. 检查 `%USERPROFILE%\.release.yaml` 是否存在
 2. 不存在 → 引导用户运行（交互粘贴 GitHub/Gitee 令牌）：
-   `node .codebuddy/skills/release/scripts/release-harness.cjs init`
+   `release init`
    自动写入 `~/.release.yaml` + 配置 `git remote gitee` + 自动配置 GitHub Actions Secret
    （GITEE_TOKEN，供 workflow 同步 Gitee）
 3. 已存在 → 继续后续步骤（所有脚本自动读取，无需再粘贴令牌）
@@ -35,7 +50,7 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 1. `git status --short` 有未提交改动 → 按变更内容分组提交（禁止把无关文件混入）
 2. **走 harness**（自动推 origin + gitee 双远端）：
    ```bash
-   node .codebuddy/skills/release/scripts/release-harness.cjs push
+   release push
    ```
 3. 失败 → 原样透传错误，停止流程
 
@@ -43,7 +58,7 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 
 1. **前置检查（必须走 harness）**：
    ```bash
-   node .codebuddy/skills/release/scripts/release-harness.cjs check-tag --version $VERSION
+   release check-tag --version $VERSION
    ```
    检查：工作区、版本格式、本地/远端 tag 冲突、master 同步。有任何 ❌ → 先解决再继续
    （远端 tag 已存在 = 需用户确认强推）
@@ -55,7 +70,7 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 
 1. **走 harness**：
    ```bash
-   node .codebuddy/skills/release/scripts/release-harness.cjs actions-status
+   release actions-status
    ```
 2. 未登录 gh → 提示用户查看 `https://github.com/Lycorxy/pvm/actions`，等待构建完成（约 1-2 分钟）
 3. 构建失败 → 透传 Actions 日志链接与错误，停止流程
@@ -66,7 +81,7 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
   本步骤用 Step 6 的 verify 确认即可
 - 方式 B（本地同步，令牌自动从 `~/.release.yaml` 读取）：
   ```bash
-  node .codebuddy/skills/release/scripts/release-harness.cjs sync-gitee --notes '<Step 1 的发布说明>'
+  release sync-gitee --notes '<Step 1 的发布说明>'
   ```
 - **安全规则**：令牌保存在 `~/.release.yaml`（用户主目录，不进仓库）；
   播报中必须脱敏（只显示前 4 位）；禁止把令牌写入任何提交内容。
@@ -75,7 +90,7 @@ zip、skill 包、checksums.txt）→ 同步 Gitee Release → 双平台验证�
 
 1. **走 harness（自动下载比对 version + SHA-256 + 附加资产存在性）**：
    ```bash
-   node .codebuddy/skills/release/scripts/release-harness.cjs verify --version $VERSION
+   release verify --version $VERSION
    ```
 2. 全部 ✅ → Step 7；有 ❌ → 回到 Step 4/5 排查（常见：GitHub CDN 缓存延迟 5 分钟内可接受；
    Gitee 失败重跑 sync-gitee.ps1）
