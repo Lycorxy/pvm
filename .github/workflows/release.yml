@@ -49,6 +49,7 @@ jobs:
             cp "dist/pvm-$plat$ext" "$stage/pvm$ext"
             cp LICENSE README.md "$stage/" 2>/dev/null || true
             (cd "$stage" && zip -q -r "../../dist/packages/pvm-${TAG}-$plat.zip" .)
+            rm -rf "$stage"
           done
 
       - name: Pack CodeBuddy skill
@@ -56,10 +57,12 @@ jobs:
           mkdir -p pkg-skill
           cp -r .codebuddy/skills/pvm pkg-skill/pvm
           (cd pkg-skill && zip -q -r "../dist/packages/pvm-env-manager.zip" pvm)
+          rm -rf pkg-skill
 
+      # checksums 只对文件计算（排除可能残留的目录），避免 "Is a directory" 失败
       - name: Generate checksums
         working-directory: dist/packages
-        run: sha256sum * > checksums.txt
+        run: find . -maxdepth 1 -type f -exec sha256sum {} + > checksums.txt
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2

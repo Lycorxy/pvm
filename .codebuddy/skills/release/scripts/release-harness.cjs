@@ -66,6 +66,7 @@ for (let i = 1; i < argv.length; i++) {
   else if (a === "--notes") opts.notes = argv[++i] || "";
   else if (a === "--repo") opts.repo = argv[++i] || "Lycorxy/pvm";
   else if (a === "--root") process.env.PVM_RELEASE_ROOT = argv[++i] || "";
+  else if (a === "--run-id") opts.runId = argv[++i] || "";
 }
 
 let pass = 0, fail = 0;
@@ -141,7 +142,7 @@ function readVersionFromFile() {
 }
 
 // ---------- 分发 ----------
-const commands = { init, "check-tag": checkTag, push, "actions-status": actionsStatus, "sync-gitee": syncGitee, verify };
+const commands = { init, "check-tag": checkTag, push, "actions-status": actionsStatus, "sync-gitee": syncGitee, verify, "run-log": runLog };
 
 const fn = commands[action];
 if (!fn) {
@@ -332,6 +333,25 @@ async function syncGitee() {
 
   console.log(`\n${failCount ? `FAIL ${failCount} 个上传失败（重跑本命令可补传）` : `OK 同步完成: ${cfg.giteeRepo} @${tag}`}`);
   process.exit(failCount ? 1 : 0);
+}
+
+// ==================== run-log：查看 workflow 失败日志 ====================
+function runLog() {
+  const cfg = readConfig();
+  if (!cfg.ghToken) { console.log("error: ~/.release.yaml 无 github.token（先跑 init）"); process.exit(2); }
+  process.env.GH_TOKEN = cfg.ghToken;
+  const runId = opts.runId || "";
+  if (!runId) { console.log("用法: release-harness.cjs run-log --run-id <runId>"); process.exit(2); }
+  try {
+    const out = cp.execSync(`gh run view ${runId} --repo ${opts.repo} --log-failed`, {
+      encoding: "utf8", maxBuffer: 20 * 1024 * 1024,
+    });
+    const lines = out.split(/\r?\n/);
+    console.log(lines.slice(-60).join("\n"));
+  } catch (e) {
+    console.log(String(e.stdout || e.message).split(/\r?\n/).slice(-60).join("\n"));
+    process.exit(1);
+  }
 }
 
 // ==================== verify：双平台资产验证 ====================
