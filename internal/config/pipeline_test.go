@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -23,170 +24,130 @@ func writeTestFile(t *testing.T, dir, name, content string) string {
 
 const testPvmYaml = `# 流水线
 name: test-project
-build:
-  dev:
-    - cd web
-    - pnpm i
-    - npm run build:dev
-  pro:
-    - pnpm i
-    - npm run build:pro
-    - cd dist
-    - zip -q -r ./release.zip ./*
-pkg:
-  go:
-    pro:
-      - go build -trimpath -ldflags "-s -w" -o dist/app .
-shorthand:
-  hello: echo hi          # 单命令简写
-empty:
-  none: []                # 空列表
-release:
-  pro:
-    - "@build:pro"
-    - "@pkg:go:pro"
+
+install: pnpm i
+lint: pnpm lint
+test: pnpm test
+
+check:                    # 并行
+  parallel:
+    - lint
+    - test
+
+release:pro:              # 顺序，里面嵌套并行
+  - install
+  - parallel:
+      - pnpm lint
+      - pnpm test
+  - pnpm build --mode pro
+  - pvm zip dist --output app.zip
 `
 
-func TestLoadPipelinesYAML(t *testing.T) {
-	path := writeTestFile(t, "", "pvm.yaml", testPvmYaml)
-	pf, err := LoadPipelines(path)
+func TestParsePipelines(t *testing.T) {
+	pf, err := LoadPipelines(writeTestFile(t, "", "pvm.yaml", testPvmYaml))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// 顶层 name 不进入流水线命名空间
+	if pf.Name != "test-project" {
+		t.Fatalf("Name = %q", pf.Name)
+	}
 	if pf.Has("name") {
 		t.Fatal("top-level name must not become a pipeline")
 	}
 
-	// 名字集合（排序后）
+	// 声明顺序，而不是字母序
+	want := []string{"install", "lint", "test", "check", "release:pro"}
 	got := pf.Names()
-	want := []string{
-		"build:dev", "build:pro", "empty:none",
-		"pkg:go:pro", "release:pro", "shorthand:hello",
-	}
-	if len(got) != len(want) {
+	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("names = %v, want %v", got, want)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("names[%d] = %q, want %q", i, got[i], want[i])
+
+	if s := pf.Steps["install"]; s.Kind != StepCmd || s.Cmd != "pnpm i" {
+		t.Fatalf("install = %+v", s)
+	}
+	if s := pf.Steps["check"]; s.Kind != StepPar || len(s.Items) != 2 || s.Items[0].Cmd != "lint" {
+		t.Fatalf("check = %+v", s)
+	}
+	rel := pf.Steps["release:pro"]
+	if rel.Kind != StepSeq || len(rel.Items) != 4 {
+		t.Fatalf("release:pro = %+v", rel)
+	}
+	if rel.Items[1].Kind != StepPar || len(rel.Items[1].Items) != 2 {
+		t.Fatalf("nested parallel = %+v", rel.Items[1])
+	}
+	if rel.Items[2].Cmd != "pnpm build --mode pro" {
+		t.Fatalf("step 3 = %+v", rel.Items[2])
+	}
+}
+
+func TestParsePipelinesAliasAndBlockScalar(t *testing.T) {
+	pf, err := ParsePipelines("pvm.yaml", []byte(`
+common: &common
+  - pnpm i
+  - pnpm build
+web: *common
+script: |
+  cd web
+  pnpm i
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := pf.Steps["web"]; s.Kind != StepSeq || len(s.Items) != 2 {
+		t.Fatalf("alias not resolved: %+v", s)
+	}
+	if s := pf.Steps["script"]; s.Kind != StepCmd || !strings.Contains(s.Cmd, "\n") {
+		t.Fatalf("block scalar = %+v", s)
+	}
+}
+
+func TestParsePipelinesEmptyFile(t *testing.T) {
+	pf, err := ParsePipelines("pvm.yaml", nil)
+	if err != nil || len(pf.Names()) != 0 {
+		t.Fatalf("empty file: %v %v", pf, err)
+	}
+}
+
+func TestParsePipelinesErrors(t *testing.T) {
+	cases := []struct {
+		name, yaml, want string
+	}{
+		{"name not string", "name: 42\nbuild: echo ok\n", "name"},
+		{"non-command scalar", "a: 123\n", "expected a command"},
+		{"null step", "a:\n", "expected a command"},
+		{"non-command in list", "a:\n  - echo ok\n  - true\n", "expected a command"},
+		{"unknown key", "a:\n  desc: hello\n  run: x\n", `unknown key "desc"`},
+		{"parallel needs list", "a:\n  parallel: pnpm lint\n", "must be followed by a list"},
+		{"parallel with sibling key", "a:\n  parallel: [x]\n  env: y\n", `unknown key "env"`},
+		{"empty list", "a: []\n", "empty list"},
+		{"empty parallel", "a:\n  parallel: []\n", "empty list"},
+		{"duplicate pipeline", "a: x\na: y\n", "duplicate"},
+		{"top level not mapping", "- a\n- b\n", "top level"},
+		{"syntax error", "a: [unclosed\n", "parse"},
+	}
+	for _, c := range cases {
+		_, err := ParsePipelines("pvm.yaml", []byte(c.yaml))
+		if err == nil {
+			t.Errorf("%s: expected error", c.name)
+			continue
+		}
+		if !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: error %q does not contain %q", c.name, err, c.want)
 		}
 	}
-
-	// 多步列表
-	pro := pf.Commands["build:pro"]
-	if len(pro) != 4 || pro[0] != "pnpm i" || pro[3] != "zip -q -r ./release.zip ./*" {
-		t.Fatalf("build:pro = %v", pro)
-	}
-
-	// 单命令简写
-	if h := pf.Commands["shorthand:hello"]; len(h) != 1 || h[0] != "echo hi" {
-		t.Fatalf("shorthand = %v", h)
-	}
-
-	// 空列表保留为空流水线
-	if e := pf.Commands["empty:none"]; len(e) != 0 {
-		t.Fatalf("empty = %v", e)
-	}
-
-	// 项目名
-	if pf.Name != "test-project" {
-		t.Fatalf("Name = %q, want %q", pf.Name, "test-project")
-	}
 }
 
-func TestLoadPipelinesNameErrors(t *testing.T) {
-	// name 非字符串
-	path := writeTestFile(t, "", "pvm.yaml", "name: 42\nbuild:\n  dev: echo ok\n")
-	if _, err := LoadPipelines(path); err == nil {
-		t.Fatal("expected error for non-string name")
-	}
-}
-
-func TestExpandPipelinePreservesBackgroundMarker(t *testing.T) {
-	// "&@ref" 不在展开时被吞掉——执行器按 & 后台作业处理
-	path := writeTestFile(t, "", "pvm.yaml",
-		"dev:\n  web: echo web\n  api: echo api\n  all:\n    - \"&@dev:web\"\n    - \"&@dev:api\"\n")
-	pf, err := LoadPipelines(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmds, err := pf.ExpandPipeline("dev:all")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(cmds) != 2 || cmds[0] != "&@dev:web" || cmds[1] != "&@dev:api" {
-		t.Fatalf("expanded = %v", cmds)
-	}
-}
-
-func TestLoadPipelinesYAMLErrors(t *testing.T) {
-	// 非字符串步骤
-	path := writeTestFile(t, "", "pvm.yaml", "a:\n  b:\n    - echo ok\n    - 123\n")
-	if _, err := LoadPipelines(path); err == nil {
-		t.Fatal("expected error for non-string step")
-	}
-
-	// 非法叶子类型
-	path = writeTestFile(t, "", "pvm.yaml", "a:\n  b: 42\n")
-	if _, err := LoadPipelines(path); err == nil {
-		t.Fatal("expected error for non-command leaf")
-	}
-
-	// 名字冲突（引号键 "x:y" 嵌套 与 x.y 路径展开相同）
-	path = writeTestFile(t, "", "pvm.yaml",
-		"x:\n  y:\n    z: echo one\n\"x:y\":\n  z: echo two\n")
-	if _, err := LoadPipelines(path); err == nil {
-		t.Fatal("expected duplicate-name error")
-	}
-
-	// YAML 语法错误
-	path = writeTestFile(t, "", "pvm.yaml", "a: [unclosed\n")
-	if _, err := LoadPipelines(path); err == nil {
-		t.Fatal("expected yaml syntax error")
-	}
-}
-
-func TestExpandPipeline(t *testing.T) {
-	path := writeTestFile(t, "", "pvm.yaml", testPvmYaml)
-	pf, err := LoadPipelines(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cmds, err := pf.ExpandPipeline("release:pro")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(cmds) != 5 {
-		t.Fatalf("expanded = %v", cmds)
-	}
-	if cmds[0] != "pnpm i" || cmds[4] != "go build -trimpath -ldflags \"-s -w\" -o dist/app ." {
-		t.Fatalf("expanded = %v", cmds)
-	}
-
-	// 未定义名字
-	if _, err := pf.ExpandPipeline("nope"); err == nil {
-		t.Fatal("expected error for undefined pipeline")
-	}
-}
-
-func TestExpandPipelineCycle(t *testing.T) {
-	path := writeTestFile(t, "", "pvm.yaml", "a:\n  x:\n    - echo 1\n    - \"@b:x\"\nb:\n  x:\n    - echo 2\n    - \"@a:x\"\n")
-	pf, err := LoadPipelines(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := pf.ExpandPipeline("a:x"); err == nil {
-		t.Fatal("expected circular reference error")
+func TestParsePipelinesErrorHasLine(t *testing.T) {
+	_, err := ParsePipelines("pvm.yaml", []byte("ok: echo\nbad:\n  - echo\n  - nope: 1\n"))
+	if err == nil || !strings.Contains(err.Error(), "pvm.yaml:2") || !strings.Contains(err.Error(), "line 4") {
+		t.Fatalf("error should locate pipeline and line, got %v", err)
 	}
 }
 
 func TestFindPipelineFileUpward(t *testing.T) {
 	// monorepo 结构：根 pvm.yaml，子目录向上查找
 	root := t.TempDir()
-	writeTestFile(t, root, "pvm.yaml", "build:\n  dev: echo root\n")
+	writeTestFile(t, root, "pvm.yaml", "build: echo root\n")
 
 	sub := filepath.Join(root, "web", "app")
 	pf, err := FindPipelineFile(sub)
@@ -198,7 +159,7 @@ func TestFindPipelineFileUpward(t *testing.T) {
 	}
 
 	// 子目录自己的 pvm.yaml 就近优先
-	writeTestFile(t, filepath.Join(root, "web"), "pvm.yaml", "build:\n  dev: echo web\n")
+	writeTestFile(t, filepath.Join(root, "web"), "pvm.yaml", "build: echo web\n")
 	pf, err = FindPipelineFile(sub)
 	if err != nil {
 		t.Fatal(err)
@@ -210,7 +171,7 @@ func TestFindPipelineFileUpward(t *testing.T) {
 
 func TestFindPipelineFileYmlFallback(t *testing.T) {
 	root := t.TempDir()
-	writeTestFile(t, root, "pvm.yml", "build:\n  dev: echo yml\n")
+	writeTestFile(t, root, "pvm.yml", "build: echo yml\n")
 	pf, err := FindPipelineFile(root)
 	if err != nil {
 		t.Fatal(err)

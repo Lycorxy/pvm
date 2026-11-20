@@ -7,6 +7,7 @@ import (
 
 	"github.com/pvm/pvm/internal/config"
 	"github.com/pvm/pvm/internal/logger"
+	"github.com/pvm/pvm/internal/pipeline"
 	"github.com/pvm/pvm/internal/shim"
 )
 
@@ -30,7 +31,7 @@ func runValidate(args []string) error {
 	fmt.Println()
 
 	// 1. 验证 shims
-	fmt.Println("  [1/4] Validating shims...")
+	fmt.Println("  [1/5] Validating shims...")
 	shimResult := shim.ValidateAllShims()
 	printShimValidation(shimResult)
 
@@ -48,7 +49,7 @@ func runValidate(args []string) error {
 
 	// 2. 验证版本一致性
 	fmt.Println()
-	fmt.Println("  [2/4] Checking version consistency...")
+	fmt.Println("  [2/5] Checking version consistency...")
 	runtimes := []string{"node", "python", "go", "pnpm", "yarn", "git"}
 	allOk := true
 	for _, rt := range runtimes {
@@ -63,7 +64,7 @@ func runValidate(args []string) error {
 
 	// 3. 检查版本冲突
 	fmt.Println()
-	fmt.Println("  [3/4] Detecting version conflicts...")
+	fmt.Println("  [3/5] Detecting version conflicts...")
 	for _, rt := range runtimes {
 		conflicts := config.DetectVersionConflicts(rt)
 		if len(conflicts) > 0 {
@@ -79,7 +80,7 @@ func runValidate(args []string) error {
 
 	// 4. 检查 PATH 冲突
 	fmt.Println()
-	fmt.Println("  [4/4] Checking PATH conflicts...")
+	fmt.Println("  [4/5] Checking PATH conflicts...")
 	conflictPaths := shimResult.ConflictPaths
 	if len(conflictPaths) > 0 {
 		allOk = false
@@ -90,6 +91,24 @@ func runValidate(args []string) error {
 		logger.Info("  💡 Run: pvm setup  (as Administrator on Windows)")
 	} else {
 		logger.Info("  ✓ PATH is clean")
+	}
+
+	// 5. 检查项目流水线（pvm.yaml）
+	fmt.Println()
+	fmt.Println("  [5/5] Checking pvm.yaml...")
+	cwd, _ := os.Getwd()
+	if pf, err := config.FindPipelineFile(cwd); err != nil {
+		allOk = false
+		logger.Error("  ✗ %v", err)
+	} else if pf == nil {
+		logger.Info("  - no pvm.yaml (skipped)")
+	} else if errs := pipeline.Validate(pf); len(errs) > 0 {
+		allOk = false
+		for _, e := range errs {
+			logger.Error("  ✗ %s: %v", pf.Path, e)
+		}
+	} else {
+		logger.Info("  ✓ %s: %d pipelines OK", pf.Path, len(pf.Names()))
 	}
 
 	// 总结

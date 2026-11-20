@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -17,18 +16,33 @@ import (
 // 不放进 .pvmrc 的原因：SaveVersionFile 会整体重写 .pvmrc，非版本内容会被抹掉。
 var PipelineFileNames = []string{"pvm.yaml", "pvm.yml"}
 
-// PipelineFile 表示 pvm.yaml 解析出的流水线集合
-type PipelineFile struct {
-	Name     string              // 项目名（顶层 name 字段，可选）
-	Path     string              // 来源 pvm.yaml 路径
-	Commands map[string][]string // 名字 -> 命令列表
-	order    []string            // 全部流水线名（排序后，保证输出确定）
+// StepKind 步骤类型
+type StepKind int
+
+const (
+	StepCmd StepKind = iota // 一条命令（或对同名流水线的引用，由编译阶段判定）
+	StepSeq                 // 按顺序执行的步骤列表
+	StepPar                 // 同时执行的步骤列表
+)
+
+// Step 是 pvm.yaml 中的一个步骤，三种形态：
+//
+//	pnpm build            # 命令
+//	[a, b, c]             # 顺序
+//	{parallel: [a, b]}    # 并行
+type Step struct {
+	Kind  StepKind
+	Cmd   string  // StepCmd
+	Items []*Step // StepSeq / StepPar
+	Line  int     // 源文件行号，用于报错
 }
 
-// PipelineGroup 用于 --list 按首段（冒号前）分组展示
-type PipelineGroup struct {
-	Prefix string
-	Names  []string
+// PipelineFile 表示 pvm.yaml 解析出的流水线集合
+type PipelineFile struct {
+	Name  string           // 项目名（顶层 name 字段，可选）
+	Path  string           // 来源 pvm.yaml 路径
+	Steps map[string]*Step // 流水线名 → 步骤
+	order []string         // 声明顺序
 }
 
 // FindPipelineFile 从 startDir 向上查找最近的 pvm.yaml / pvm.yml。
@@ -62,192 +76,146 @@ func FindPipelineFile(startDir string) (*PipelineFile, error) {
 	}
 }
 
-// LoadPipelines 解析 pvm.yaml。
-//
-// 顶层 name 字段（可选）：项目名，--list 与执行头部显示，供人与模型快速识别。
-// 其余顶层键为流水线；嵌套键用 ":" 连接成流水线名：
-//
-//	name: my-app
-//	build:
-//	  dev:                     # 名字 = build:dev（2 段：动作:环境）
-//	    - cd web
-//	    - pnpm i
-//	pkg:
-//	  go:                      # 名字 = pkg:go:pro（3 段：动作:目标:环境）
-//	    pro:
-//	      - pvm pack go --entry . --output dist/app
-//
-// 叶子节点两种写法：
-//   - 命令列表（多步）
-//   - 单个字符串（单步简写）
-//
-// 引用其他流水线：以 @ 开头的命令项；后台并行步骤以 & 开头。
-// YAML 中 @ 和 & 都是保留指示符，必须加引号：
-//
-//	dev:
-//	  all:
-//	    - "&@dev:web"          # 前端后台启动
-//	    - "&@dev:api"          # 后端后台启动
+// LoadPipelines 读取并解析 pvm.yaml
 func LoadPipelines(path string) (*PipelineFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
+	return ParsePipelines(path, data)
+}
 
-	var root map[string]any
-	if err := yaml.Unmarshal(data, &root); err != nil {
+// ParsePipelines 解析 pvm.yaml 内容。
+//
+// 顶层 name 字段（可选）是项目名；其余每个顶层键是一条流水线，键名就是流水线名
+// （可以带冒号，如 release:pro）。值的写法只有三种：
+//
+//	install: pnpm i              # 一条命令
+//	release:                     # 列表：从上到下依次执行，失败即停
+//	  - install
+//	  - parallel: [lint, test]   # 列表里可以嵌套并行组
+//	  - pnpm build
+//	check:                       # 并行：下面的步骤同时执行
+//	  parallel:
+//	    - lint
+//	    - test
+//
+// 步骤如果恰好等于某条流水线的名字，就是对它的引用；否则按命令执行。
+func ParsePipelines(path string, data []byte) (*PipelineFile, error) {
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("parse %s: %w", path, err)
 	}
-	if root == nil {
-		root = map[string]any{}
+
+	pf := &PipelineFile{Path: path, Steps: make(map[string]*Step)}
+	if doc.Kind == 0 || len(doc.Content) == 0 { // 空文件
+		return pf, nil
+	}
+	root := resolveAlias(doc.Content[0])
+	if root.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("%s:%d: top level must be a mapping of pipeline names, e.g.\n  build: pnpm build", path, root.Line)
 	}
 
-	pf := &PipelineFile{
-		Path:     path,
-		Commands: make(map[string][]string),
-	}
-	// 顶层保留字段：name（项目名），不进入流水线命名空间
-	if nameVal, ok := root["name"]; ok {
-		name, isStr := nameVal.(string)
-		if !isStr {
-			return nil, fmt.Errorf("%s: top-level \"name\" must be a string, got %T", path, nameVal)
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		key, val := root.Content[i], root.Content[i+1]
+		name := strings.TrimSpace(key.Value)
+
+		if name == "name" {
+			val = resolveAlias(val)
+			if val.Kind != yaml.ScalarNode || val.Tag != "!!str" {
+				return nil, fmt.Errorf("%s:%d: top-level \"name\" must be a string", path, val.Line)
+			}
+			pf.Name = strings.TrimSpace(val.Value)
+			continue
 		}
-		pf.Name = strings.TrimSpace(name)
-		delete(root, "name")
+		if name == "" {
+			return nil, fmt.Errorf("%s:%d: pipeline name must not be empty", path, key.Line)
+		}
+		if _, dup := pf.Steps[name]; dup {
+			return nil, fmt.Errorf("%s:%d: duplicate pipeline %q", path, key.Line, name)
+		}
+		step, err := parseStep(val)
+		if err != nil {
+			return nil, fmt.Errorf("%s:%d: pipeline %q: %w", path, key.Line, name, err)
+		}
+		pf.Steps[name] = step
+		pf.order = append(pf.order, name)
 	}
-
-	if err := walkPipelines(root, "", pf); err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
-	sort.Strings(pf.order) // map 遍历无序，排序保证 --list 输出确定
 	return pf, nil
 }
 
-// walkPipelines 递归展开嵌套键；":" 连接父子键构成流水线名
-func walkPipelines(node map[string]any, prefix string, pf *PipelineFile) error {
-	for key, val := range node {
-		name := key
-		if prefix != "" {
-			name = prefix + ":" + key
+func resolveAlias(n *yaml.Node) *yaml.Node {
+	for n.Kind == yaml.AliasNode && n.Alias != nil {
+		n = n.Alias
+	}
+	return n
+}
+
+func parseStep(n *yaml.Node) (*Step, error) {
+	n = resolveAlias(n)
+	switch n.Kind {
+	case yaml.ScalarNode:
+		if n.Tag != "!!str" {
+			return nil, fmt.Errorf("line %d: expected a command (string), got %q", n.Line, n.Value)
 		}
-		if sub, ok := val.(map[string]any); ok {
-			if err := walkPipelines(sub, name, pf); err != nil {
-				return err
-			}
-			continue
+		cmd := strings.TrimSpace(n.Value)
+		if cmd == "" {
+			return nil, fmt.Errorf("line %d: empty command", n.Line)
 		}
-		cmds, err := leafCommands(name, val)
+		return &Step{Kind: StepCmd, Cmd: cmd, Line: n.Line}, nil
+
+	case yaml.SequenceNode:
+		items, err := parseSteps(n)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if _, dup := pf.Commands[name]; dup {
-			return fmt.Errorf("duplicate pipeline name %q", name)
-		}
-		pf.Commands[name] = cmds
-		pf.order = append(pf.order, name)
-	}
-	return nil
-}
+		return &Step{Kind: StepSeq, Items: items, Line: n.Line}, nil
 
-// leafCommands 解析叶子节点为命令列表：字符串（单步简写）或字符串列表（多步）
-func leafCommands(name string, val any) ([]string, error) {
-	switch v := val.(type) {
-	case string:
-		if strings.TrimSpace(v) == "" {
-			return nil, nil
-		}
-		return []string{strings.TrimSpace(v)}, nil
-	case []any:
-		var cmds []string
-		for i, item := range v {
-			s, ok := item.(string)
-			if !ok {
-				return nil, fmt.Errorf("pipeline %q step %d: expected a command string, got %T", name, i+1, item)
-			}
-			s = strings.TrimSpace(s)
-			if s != "" {
-				cmds = append(cmds, s)
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			if k := n.Content[i].Value; k != "parallel" {
+				return nil, fmt.Errorf("line %d: unknown key %q — a step is a command, a list, or `parallel:` followed by a list",
+					n.Content[i].Line, k)
 			}
 		}
-		return cmds, nil
-	default:
-		return nil, fmt.Errorf("pipeline %q: expected a command list, a single command, or nested keys; got %T", name, val)
+		if len(n.Content) != 2 {
+			return nil, fmt.Errorf("line %d: `parallel:` must be the only key here", n.Line)
+		}
+		list := resolveAlias(n.Content[1])
+		if list.Kind != yaml.SequenceNode {
+			return nil, fmt.Errorf("line %d: `parallel:` must be followed by a list", list.Line)
+		}
+		items, err := parseSteps(list)
+		if err != nil {
+			return nil, err
+		}
+		return &Step{Kind: StepPar, Items: items, Line: n.Line}, nil
 	}
+	return nil, fmt.Errorf("line %d: expected a command, a list, or `parallel:`", n.Line)
 }
 
-// Names 返回全部流水线名（排序后）
+func parseSteps(seq *yaml.Node) ([]*Step, error) {
+	if len(seq.Content) == 0 {
+		return nil, fmt.Errorf("line %d: empty list (a pipeline needs at least one step)", seq.Line)
+	}
+	items := make([]*Step, 0, len(seq.Content))
+	for _, c := range seq.Content {
+		s, err := parseStep(c)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, s)
+	}
+	return items, nil
+}
+
+// Names 返回全部流水线名（按声明顺序）
 func (pf *PipelineFile) Names() []string {
 	return append([]string(nil), pf.order...)
 }
 
 // Has 判断某名字是否存在
 func (pf *PipelineFile) Has(name string) bool {
-	_, ok := pf.Commands[name]
+	_, ok := pf.Steps[name]
 	return ok
-}
-
-// ExpandPipeline 把一条流水线展开为扁平命令列表。
-// 以 @ 开头的命令项递归引用其他流水线；检测循环引用。
-func (pf *PipelineFile) ExpandPipeline(name string) ([]string, error) {
-	return pf.expand(name, nil)
-}
-
-func (pf *PipelineFile) expand(name string, visiting []string) ([]string, error) {
-	for _, v := range visiting {
-		if v == name {
-			return nil, fmt.Errorf("circular pipeline reference: %s -> %s",
-				strings.Join(visiting, " -> "), name)
-		}
-	}
-	cmds, ok := pf.Commands[name]
-	if !ok {
-		return nil, fmt.Errorf("pipeline %q is not defined in %s", name, pf.Path)
-	}
-	visiting = append(visiting, name)
-
-	var out []string
-	for _, cmd := range cmds {
-		if ref, isRef := pipelineRef(cmd); isRef {
-			sub, err := pf.expand(ref, visiting)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, sub...)
-			continue
-		}
-		out = append(out, cmd)
-	}
-	return out, nil
-}
-
-// pipelineRef 判断命令项是否为 @名字 形式的流水线引用
-func pipelineRef(cmd string) (string, bool) {
-	if strings.HasPrefix(cmd, "@") && len(cmd) > 1 {
-		return strings.TrimSpace(cmd[1:]), true
-	}
-	return "", false
-}
-
-// ListGroups 按首段（第一个冒号前）分组返回全部流水线名，用于 --list 展示
-func (pf *PipelineFile) ListGroups() []PipelineGroup {
-	groupMap := make(map[string][]string)
-	for _, name := range pf.order {
-		group := name
-		if i := strings.Index(name, ":"); i > 0 {
-			group = name[:i]
-		}
-		groupMap[group] = append(groupMap[group], name)
-	}
-
-	prefixes := make([]string, 0, len(groupMap))
-	for p := range groupMap {
-		prefixes = append(prefixes, p)
-	}
-	sort.Strings(prefixes)
-
-	groups := make([]PipelineGroup, 0, len(prefixes))
-	for _, p := range prefixes {
-		groups = append(groups, PipelineGroup{Prefix: p, Names: groupMap[p]})
-	}
-	return groups
 }
