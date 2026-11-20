@@ -7,7 +7,7 @@
 2. "机器上原来有 nvm，现在要统一用 pvm，确保 pvm 不受影响"
    → check → 若 nvm 劫持则 `fix path` → 复跑 check → 提示新开终端。
 3. "读一下我这个项目的 pvm.yaml 和 .pvmrc，然后加一条流水线把 go 打包成全平台"
-   → `config read` → 按 pvm-guide.md 编辑 pvm.yaml（pkg:go: 用 `pvm pack go --entry . --output dist/app`）→ `config validate`。
+   → `config read` → 按 pvm-guide.md 编辑 pvm.yaml（加 `pkg: pvm pkg go --entry . --output dist/app --type all`，再由 `release:pro:` 列表引用 `pkg`）→ `config validate`。
 
 ## ❌ 必须不触发（负向）
 

@@ -1,108 +1,88 @@
 ---
 name: pvm
 description: >
-  pvm 环境守护：用 harness 脚本检测/修复 pvm 安装与 PATH、排除 nvm 等工具干扰（一切以 pvm 为主）、
-  读写 pvm.yaml 与 .pvmrc 项目配置，并提供 pvm 使用指南（含流水线与跨平台打包）。
+  pvm 环境守护（pvm 仓库自用）：用 harness 脚本检测/修复 pvm 安装与 PATH、排除 nvm 等工具干扰、
+  校验 pvm.yaml 与 .pvmrc，并提供 pvm 用法速查（流水线、打包、压缩）。
   当用户说 检查 pvm 环境、pvm 装不上、pvm 和 nvm 冲突、安装 pvm、卸载 pvm、
   配置/读取/修改 pvm.yaml 或 .pvmrc、pvm 怎么用、pvm 出问题时使用。
   不要用于 pvm 源码本身的开发任务、node_modules 依赖安装（用 code-env）、
   或 nvm/volta 等其他版本管理器的使用咨询。
-version: 1.0.0
+version: 1.1.0
 dependencies: []
 conflict-with: []
 allowed-tools: [execute_command, read_file, replace_in_file, search_content]
-max-token: 2000
+max-token: 1200
 ---
 
-# pvm — pvm 环境守护与使用指南
+# pvm — 环境体检与配置
 
-## 概述
+面向本仓库（pvm 自身）的日常使用：跑一条命令看状态，有红色才处理。
 
-用 `scripts/pvm-harness.mjs`（node 跨平台，零依赖）完成 pvm 环境的检测、修复、配置文件读写验证；
-模型只负责执行 harness、分析精简输出、选择下一步，形成「检测 → 修复 → 复验」闭环，直到 pvm 可正常使用。
+## 三条命令
 
-## 何时使用 / 何时不使用
-
-- 使用：pvm 安装/卸载/升级、环境报错、nvm 冲突、PATH/shim 问题、pvm.yaml/.pvmrc 读写、pvm 用法咨询。
-- 不使用：pvm 仓库自身的功能开发（直接开发）；项目依赖安装/启动（用 code-env）；其他版本管理器咨询。
-
-## 🛑 入口守卫
-
-```
-1. 前提：本机 node ≥ 16（harness 运行需要）。
-   无 node 且未装 pvm → 先按 references/pvm-guide.md「安装」节的 PowerShell/curl 命令手动装 pvm，
-   再 pvm install node@lts，之后回到本流程。
-2. harness 路径 = 本 skill 基目录下 scripts/pvm-harness.mjs，以下记为 node pvm-harness.mjs。
-3. 一旦用户确定使用 pvm：环境问题一律修复 pvm（fix/install/setup-path），
-   禁止建议改用或重装 nvm 等其他工具。
+```bash
+node scripts/pvm-harness.mjs check            # 环境体检
+node scripts/pvm-harness.mjs fix path         # 修 PATH（仅 check 报错时）
+node scripts/pvm-harness.mjs config validate  # 配置文件校验
 ```
 
-## 核心工作流
+## 输出（已精简，照抄即可）
 
-### Step 1：环境检测
-
-1. 执行 `node pvm-harness.mjs check`（cwd = 用户项目目录）。
-2. 读精简输出（`[n] 项 → ✅/❌ 原因 → 下一步`），failed=0 → 跳到 Step 3 按需配配置，否则进 Step 2。
-
-### Step 2：修复闭环（≤ 3 轮）
-
-1. 按输出里的「下一步」执行对应动作：
-   - 未安装 → `node pvm-harness.mjs fix install`（完成后提示用户新开终端）。
-   - PATH/shims/nvm 劫持 → `node pvm-harness.mjs fix path`（完成后新开终端）。
-   - doctor 失败 → 先 `pvm validate --auto-fix`，仍败 → `node pvm-harness.mjs fix setup`。
-2. 每轮修复后复跑 `node pvm-harness.mjs check`；全绿 → 进入 Step 3。
-3. 3 轮仍失败 → 输出失败项与原始原因，按 references/pvm-guide.md「排障」节逐项分析，必要时问用户。
-
-### Step 3：配置文件（按用户需求）
-
-1. 读取：`node pvm-harness.mjs config read` → JSON（.pvmrc / pvm.yaml 内容与路径）。
-2. 写 .pvmrc：`node pvm-harness.mjs config write-pvmrc node@20.20.2 pnpm@8.15.9`（rt@system = 用系统版本）。
-3. 写 pvm.yaml：模型直接编辑文件（YAML 手写，见 references/pvm-guide.md「流水线」节的格式与示例）。
-4. 任何写入后必须验证：`node pvm-harness.mjs config validate`，失败则修正再验。
-
-### Step 4：收尾播报
-
-1. 一行最终状态：`✅ pvm 环境就绪（版本 X，doctor 通过，node 由 pvm 接管）`。
-2. 提示需要用户自己做的事：新开终端/重启 IDE（PATH 与环境变量在进程启动时缓存）。
-3. 用法问题：查 references/pvm-guide.md 回答，不编造命令。
-
-## 中断与恢复
-
-- 任何一步中断（超时/报错/用户打断）→ 重新执行 `node pvm-harness.mjs check` 即可恢复：
-  check 无副作用、幂等，输出即最新状态。
-- fix install 中断 → 重跑 fix install（安装脚本可重入）；fix path/setup 同理。
-
-## 输出格式（精简播报，全程遵守）
+全绿只有一行：
 
 ```
-[Step n] <执行了什么命令>
-→ ✅/❌ <结果或原因>
-→ 下一步: <命令或说明>（失败时必给）
+✅ pvm 0.0.2 | shims ok | nvm ok | doctor ok | .pvmrc ok | pvm.yaml 6 行清单
 ```
 
-- 禁止大段解释原理、贴长日志；harness 原始输出原样透传即可。
-- 最终只播报：通过项数、失败项与原因、用户后续动作。
+有失败才展开：
+
+```
+❌ 1/6 项失败
+❌ shims PATH: C:\Users\me\.pvm\shims 不在 PATH（node 等命令不会被 pvm 接管）
+   下一步: node pvm-harness.mjs fix path，完成后新开终端再 check
+```
+
+播报规则：只回传这一行（或失败项），**不贴原始日志、不复述原理**。
+
+## 流程
+
+1. `check` 全绿 → 直接回答用户；有红 → 下一步。
+2. 按失败项的「下一步」执行：`fix install` / `fix path` / `fix setup`；
+   `doctor` 失败先 `pvm validate --auto-fix`。每轮后复跑 `check`，最多 3 轮。
+3. 改配置：`config read` → 编辑 `pvm.yaml`（四条规则：`名字: 命令`、列表=顺序、
+   `parallel:`=并行、步骤名=引用）→ `config validate`。
+4. 收尾一行状态 + 需要用户做的事（新开终端/重启 IDE）。
+
+## 本仓库常用
+
+| 命令 | 作用 |
+|------|------|
+| `pvm run` | 列出全部流水线 |
+| `pvm run release:pro` | test → build → pkg |
+| `pvm pkg go --entry . --output dist/pvm --type all` | 5 平台二进制 |
+| `pvm pkg node --entry src/app.ts --output dist/app --type all --libc legacy` | node 单文件（兼容老 glibc） |
+| `pvm zip <src> -o x.zip --reproducible` | 可复现压缩 |
 
 ## 错误处理
 
 | 现象 | 处理 |
 |------|------|
-| harness 本身跑不起来 | 检查 node 版本 ≥16；确认脚本路径正确 |
-| `pvm run --list` 失败但 pvm.yaml 存在 | pvm 版本过旧（无 run 命令）→ `pvm self-update` 后重验 |
-| doctor 修不动 | 透传 doctor 输出，按 references/pvm-guide.md「排障」节逐项处理 |
-| 网络 403/超时 | gitee 镜像失败换 github 源（见 references/pvm-guide.md「安装」节） |
-| 普通终端装包永远失败、管理员身份打开才成功 | 曾用管理员/sudo 装过 pvm，`~/.pvm` 文件所有权被污染 → `pvm repair-owner`（Windows 弹 UAC；Unix 提示 sudo）一次修复，之后**普通权限**重装即可（见 references/pvm-guide.md「排障」节） |
-| 用户想卸载 pvm | `pvm uninstall`（详见 references/pvm-guide.md），卸载后跑 check 确认 |
+| harness 跑不起来 | node ≥ 16；确认脚本路径 |
+| `pvm run` 报 Unknown command | pvm 过旧（无 run/pkg）→ `pvm self-update` 或重装 |
+| `pvm run` 报 circular reference | 流水线互相引用，按报错链路拆开 |
+| doctor 修不动 | 透传输出，按 pvm-guide.md「排障」逐项处理 |
+| 普通终端装不了、管理员可以 | `~/.pvm` 所有权被污染 → `pvm repair-owner`（Windows 弹 UAC） |
+| 网络 403/超时 | 默认国内镜像；`--official` 切官方源 |
 
 ## 验证清单
 
 - [ ] `node pvm-harness.mjs check` 全绿（exit 0）
-- [ ] `pvm which node`（若 node 已装）指向 ~/.pvm/shims，nvm（若存在）不劫持
-- [ ] 用户需要的 .pvmrc / pvm.yaml 已写入且 `config validate` 通过
-- [ ] 已提示新开终端/重启 IDE（若有 PATH 类修复）
+- [ ] `pvm which node` 指向 `~/.pvm/shims`（若装了 node）
+- [ ] `pvm.yaml` / `.pvmrc` 改动后 `config validate` 通过
+- [ ] 有 PATH 类修复时已提示新开终端
 
 ## 参考资料
 
-- [references/pvm-guide.md](references/pvm-guide.md) — pvm 使用指南：**能力与局限边界（先读）**、安装/卸载、
-  命令速查、.pvmrc、pvm.yaml 流水线、pack 跨平台打包、排障
-- [references/floor-ceiling-guide.md](references/floor-ceiling-guide.md) — 检测项分工判定表（脚本 exit code vs 模型理解）
+- [references/pvm-guide.md](references/pvm-guide.md) — 使用指南：边界、安装/卸载、命令速查、
+  `.pvmrc`（含 `.nvmrc` 兼容）、`pvm.yaml` 四条规则、`pkg`（`--type`/`--include`/`--libc`）、`zip`、排障
+- [references/floor-ceiling-guide.md](references/floor-ceiling-guide.md) — 检测项分工判定表

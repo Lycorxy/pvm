@@ -46,40 +46,50 @@ function which(name) {
   return r.ok ? r.out.split(/\r?\n/)[0].trim() : null;
 }
 
+// 输出策略：全绿只打一行；有失败才逐项展开（含下一步）
 let total = 0, failed = 0, skipped = 0;
-function report(name, ok, detail, next) {
+const okParts = [];
+const failLines = [];
+
+function report(name, ok, detail, next, okText) {
   total++;
-  if (!ok) failed++;
-  console.log(`[${total}] ${name} → ${ok ? '✅' : '❌'} ${detail}`);
-  if (next) console.log(`    下一步: ${next}`);
+  if (ok) {
+    okParts.push(okText || name);
+    return;
+  }
+  failed++;
+  failLines.push(`❌ ${name}: ${detail}`);
+  if (next) failLines.push(`   下一步: ${next}`);
 }
 function skip(name, reason) {
   total++; skipped++;
-  console.log(`[${total}] ${name} → ⏭️ 跳过（${reason}）`);
+  okParts.push(`${name} 跳过`);
 }
 function summary() {
-  const passed = total - failed - skipped;
-  console.log('------');
-  console.log(`结果: ${passed} 通过, ${failed} 失败, ${skipped} 跳过`);
+  if (failed === 0) {
+    console.log(`✅ ${okParts.join(' | ')}`);
+  } else {
+    console.log(`❌ ${failed}/${total} 项失败`);
+    for (const l of failLines) console.log(l);
+    if (skipped) console.log(`   （${skipped} 项跳过）`);
+  }
   process.exit(failed > 0 ? 1 : 0);
 }
 
 // pvm.yaml 解析失败时区分归因：Unknown command = pvm 过旧；其余才是 yaml 格式问题
 function pipelineFailNext(out) {
-  if (/unknown command/i.test(out)) return 'pvm self-update 或重装 pvm（当前 pvm 过旧，无 run 命令），完成后重验';
-  return '修正 pvm.yaml（嵌套键即流水线名，叶子为命令列表），再 config validate';
+  if (/unknown command/i.test(out)) return 'pvm self-update 或重装 pvm（当前 pvm 过旧，无 run/pkg 命令），完成后重验';
+  return '修正 pvm.yaml（规则只有四条：名字: 命令；名字: + 列表 = 顺序；parallel: + 列表 = 并行；步骤名等于流水线名 = 引用），再 config validate';
 }
 
 // ---------- check：环境检测 ----------
 function cmdCheck() {
-  console.log(`[pvm] ${IS_WIN ? 'windows' : process.platform} | cwd=${CWD} | PVM_HOME=${PVM_HOME}`);
-
   // 1) pvm 安装
   const v = run('pvm --version');
   const installed = v.ok;
   const binExists = fs.existsSync(PVM_BIN);
   if (installed) {
-    report('pvm 安装', true, `${v.out}（${which('pvm') || 'PATH'}）`);
+    report('pvm 安装', true, '', null, v.out);
   } else if (binExists) {
     report('pvm 安装', false, `pvm 在 ${PVM_BIN}，但 PATH 中不可用`, 'node pvm-harness.mjs fix path，完成后新开终端再 check');
   } else {
@@ -99,15 +109,15 @@ function cmdCheck() {
   const norm = (d) => d.toLowerCase().replace(/[\\/]+$/, '');
   const pathDirs = (process.env.PATH || '').split(path.delimiter).filter(Boolean).map(norm);
   const shimsOk = pathDirs.includes(norm(SHIMS));
-  report('shims PATH', shimsOk, shimsOk ? `${SHIMS} 已在 PATH` : `${SHIMS} 不在 PATH（node 等命令不会被 pvm 接管）`,
-    shimsOk ? null : 'node pvm-harness.mjs fix path，完成后新开终端再 check');
+  report('shims PATH', shimsOk, `${SHIMS} 不在 PATH（node 等命令不会被 pvm 接管）`,
+    shimsOk ? null : 'node pvm-harness.mjs fix path，完成后新开终端再 check', 'shims ok');
 
   // 3) nvm 干扰：nvm 存在时，node 必须由 pvm 接管（一切以 pvm 为主）
   const nvmExists = IS_WIN
     ? Boolean(process.env.NVM_HOME || which('nvm'))
     : Boolean(process.env.NVM_DIR || fs.existsSync(path.join(HOME, '.nvm')));
   if (!nvmExists) {
-    report('nvm 干扰', true, '未检测到 nvm，无冲突');
+    report('nvm 干扰', true, '', null, 'nvm ok');
   } else {
     const w = run('pvm which node');
     if (!w.ok) {
@@ -115,14 +125,14 @@ function cmdCheck() {
     } else if (/[\\/](nvm|NVM)/.test(w.out)) {
       report('nvm 干扰', false, `nvm 正在劫持 node：${w.out}`, 'node pvm-harness.mjs fix path 前置 pvm shims，新开终端后重试');
     } else {
-      report('nvm 干扰', true, `nvm 存在，node 已由 pvm 接管：${w.out}`);
+      report('nvm 干扰', true, '', null, 'nvm ok（已接管）');
     }
   }
 
   // 4) pvm doctor 综合体检
   const d = run('pvm doctor');
   if (d.ok) {
-    report('pvm doctor', true, '全部检查通过');
+    report('pvm doctor', true, '', null, 'doctor ok');
   } else {
     const lastLines = d.out.split(/\r?\n/).filter(Boolean).slice(-3).join(' | ');
     report('pvm doctor', false, `体检未全过：${lastLines || '无输出（看上方 doctor 原始信息）'}`,
@@ -135,27 +145,26 @@ function cmdCheck() {
   if (fs.existsSync(pvmrc)) {
     const c = run('pvm current');
     if (c.ok) {
-      console.log(`[5] 项目配置 → ✅ .pvmrc 可解析（${path.basename(pvmrc)}）`);
+      report('项目配置', true, '', null, '.pvmrc ok');
     } else {
-      total++; failed++;
-      console.log(`[5] 项目配置 → ❌ .pvmrc 存在但 pvm 解析失败`);
-      console.log(`    下一步: 检查格式（每行 "runtime version"，如 "node 20.20.2"），或 pvm config show 对照`);
+      report('项目配置', false, '.pvmrc 存在但 pvm 解析失败',
+        '检查格式（每行 "runtime version"，如 "node 20.20.2"），或 pvm config show 对照');
     }
   } else {
-    console.log(`[5] 项目配置 → ℹ️ .pvmrc 不存在（如需项目级版本锁定: pvm init --local）`);
+    report('项目配置', true, '', null, '.pvmrc 无');
   }
-  total++;
   if (fs.existsSync(pipeline)) {
     const l = run('pvm run --list');
+    const n = l.out.split(/\r?\n/).filter(Boolean).length;
     if (l.ok) {
-      console.log(`    pvm.yaml 可解析（${l.out.split(/\r?\n/).filter(Boolean).length} 行流水线清单）`);
+      report('pvm.yaml', true, '', null, `pvm.yaml ${n} 行清单`);
     } else {
-      failed++;
-      console.log(`    ❌ pvm.yaml 存在但解析失败：${l.out.split(/\r?\n/).filter(Boolean).slice(-2).join(' | ')}`);
-      console.log(`    下一步: ${pipelineFailNext(l.out)}`);
+      report('pvm.yaml', false,
+        `解析失败：${l.out.split(/\r?\n/).filter(Boolean).slice(-2).join(' | ')}`,
+        pipelineFailNext(l.out));
     }
   } else {
-    console.log(`    ℹ️ pvm.yaml 不存在（如需流水线: 在项目根创建 pvm.yaml）`);
+    report('pvm.yaml', true, '', null, 'pvm.yaml 无');
   }
   summary();
 }
@@ -228,22 +237,36 @@ function cmdConfig(args) {
   }
 
   if (action === 'validate') {
-    let bad = 0;
+    // 同样一行：全绿一行，失败逐项
+    const ok = [];
+    const bad = [];
     if (fs.existsSync(pvmrc)) {
       const c = run('pvm current');
-      console.log(c.ok ? '[validate] ✅ .pvmrc → pvm current 通过' : `[validate] ❌ .pvmrc 解析失败: ${c.out.split(/\r?\n/).filter(Boolean).slice(-2).join(' | ')}`);
-      if (!c.ok) bad++;
+      if (c.ok) ok.push('.pvmrc ok');
+      else {
+        bad.push(`❌ .pvmrc 解析失败: ${c.out.split(/\r?\n/).filter(Boolean).slice(-2).join(' | ')}`);
+        bad.push('   下一步: 每行 "runtime version"（如 node 20.20.2），或 pvm config show 对照');
+      }
     } else {
-      console.log('[validate] ℹ️ .pvmrc 不存在（跳过）');
+      ok.push('.pvmrc 无');
     }
     if (fs.existsSync(pipeline)) {
       const l = run('pvm run --list');
-      console.log(l.ok ? '[validate] ✅ pvm.yaml → pvm run --list 通过' : `[validate] ❌ pvm.yaml 解析失败: ${l.out.split(/\r?\n/).filter(Boolean).slice(-2).join(' | ')}\n[validate] 下一步: ${pipelineFailNext(l.out)}`);
-      if (!l.ok) bad++;
+      if (l.ok) ok.push('pvm.yaml ok');
+      else {
+        bad.push(`❌ pvm.yaml 解析失败: ${l.out.split(/\r?\n/).filter(Boolean).slice(-2).join(' | ')}`);
+        bad.push(`   下一步: ${pipelineFailNext(l.out)}`);
+      }
     } else {
-      console.log('[validate] ℹ️ pvm.yaml 不存在（跳过）');
+      ok.push('pvm.yaml 无');
     }
-    process.exit(bad > 0 ? 1 : 0);
+    if (bad.length === 0) {
+      console.log(`✅ ${ok.join(' | ')}`);
+    } else {
+      console.log(`❌ ${bad.filter((l) => l.startsWith('❌')).length} 项失败`);
+      for (const l of bad) console.log(l);
+    }
+    process.exit(bad.length > 0 ? 1 : 0);
   }
 
   console.log('用法: node pvm-harness.mjs config read|write-pvmrc|validate');

@@ -14,6 +14,9 @@ trigger-keywords:
   - pvm 怎么用
   - pvm 出问题
   - pvm 修复
+  - pvm 打包
+  - pvm pkg
+  - pvm zip
 depends-on: []
 mutual-exclude: []
 require-tools:
@@ -30,3 +33,6 @@ trigger-weight:
   pvm.yaml: 85
   pvmrc: 85
   pvm 出问题: 80
+  pvm 打包: 80
+  pvm pkg: 85
+  pvm zip: 80
