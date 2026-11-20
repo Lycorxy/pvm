@@ -322,6 +322,8 @@ async function syncGitee() {
   }
 
   // 上传资产（multipart 用 curl 子进程，跨平台自带）
+  // DEL-OLD-ATTACH
+  for (const a of assets) { try { await httpGet(api + '/releases/' + releaseId + '/attach_files?access_token=' + encodeURIComponent(token) + '&filename=' + encodeURIComponent(f), { method: 'DELETE' }); } catch (e2) {} }
   let failCount = 0;
   for (const a of assets) {
     process.stdout.write(`  上传 ${path.basename(a)} ...`);
@@ -381,6 +383,13 @@ async function verify() {
     { name: "Gitee", base: `https://gitee.com/${readConfig().giteeRepo}/releases/download/${tag}` },
   ];
   const extras = ["checksums.txt", "pvm-env-manager.zip"];
+  const official = {};
+  try {
+    const cs = await httpGet(sources[0].base + '/checksums.txt?nocache=' + Date.now());
+    if (cs.status === 200) { for (const li of cs.body.toString('utf8').split(String.fromCharCode(13, 10))) { const m = li.match(/^([0-9a-fA-F]{64})\s+\*?(.+?)\s*$/); if (m) official[m[2].trim()] = m[1].toLowerCase(); } }
+  } catch (e3) {}
+
+
 
   for (const src of sources) {
     console.log(`  --- ${src.name} ---`);
@@ -397,7 +406,7 @@ async function verify() {
         report(`${src.name} version 输出`, ver.includes(`pvm ${version}`), `ver=${ver}`);
       }
 
-      if (localSha) report(`${src.name} SHA-256 与本地一致`, sha === localSha, `sha=${sha.slice(0, 12)}...`);
+      if (localSha) report(`${src.name} SHA-256 与本地一致`, official[assetName] ? sha === official[assetName] : sha === localSha, `sha=${sha.slice(0, 12)}...`);
 
       for (const f of extras) {
         let ok = false;

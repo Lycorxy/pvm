@@ -1,17 +1,11 @@
-# PVM 项目自身的构建流水线（dogfood：用 pvm 打包 pvm）
+# pvm 自己的流水线（dogfood）：pvm run <名字>
 name: pvm
-build:
-  dev:
-    - go build -o dist/pvm-dev.exe .
-test:
-  all:
-    - go test ./...
-pkg:
-  go:
-    pro:
-      - pvm pack go --entry . --output dist/pvm-pro
-release:
-  pro:
-    - "@test:all"
-    - "@build:dev"
-    - "@pkg:go:pro"
+
+test: go test ./...
+build: go build -o dist/pvm-dev.exe .
+pkg: pvm pkg go --entry . --output dist/pvm
+
+release:pro:
+  - test
+  - build
+  - pkg

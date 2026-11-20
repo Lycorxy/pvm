@@ -16,3 +16,10 @@ pvm-shim-*
 
 # Temp files/dirs from local testing
 .tmp-*
+# Playwright CLI artifacts
+.playwright-cli/
+
+# 文章草稿（只留本地，不进仓库）
+/pvm_ai_mate.md
+/pvm_container_isolation.md
+/pvm_pipeline.md
