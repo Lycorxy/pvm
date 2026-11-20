@@ -8,8 +8,12 @@ import (
 	"strings"
 )
 
-// 版本声明文件名（仅 .pvmrc）
+// 版本声明文件名：pvm 自己写入/修改的文件（只有 .pvmrc）
 var VersionFileNames = []string{".pvmrc"}
+
+// readableVersionFiles 读取时额外兼容 nvm 的 .nvmrc（只读，pvm 不写它）。
+// 同一目录两者都存在时 .pvmrc 优先。
+var readableVersionFiles = []string{".pvmrc", ".nvmrc"}
 
 // VersionFile 表示一个版本声明文件
 type VersionFile struct {
@@ -36,12 +40,15 @@ func FindVersionFile(startDir string) (*VersionFile, error) {
 			return nil, nil
 		}
 
-		// 查找 .pvmrc
-		for _, name := range VersionFileNames {
+		for _, name := range readableVersionFiles {
 			p := filepath.Join(dir, name)
-			if fileExists(p) {
-				return LoadVersionFile(p)
+			if !fileExists(p) {
+				continue
 			}
+			if name == ".nvmrc" {
+				return LoadNvmrc(p)
+			}
+			return LoadVersionFile(p)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -49,6 +56,30 @@ func FindVersionFile(startDir string) (*VersionFile, error) {
 		}
 		dir = parent
 	}
+}
+
+// LoadNvmrc 解析 nvm 的 .nvmrc：整个文件只有一行 node 版本号。
+// 支持 "20.11.0"、"v20.11.0"、注释与空行；
+// "lts/*" 这类需要联网解析的写法会被忽略（回退到用户级/系统版本）。
+func LoadNvmrc(path string) (*VersionFile, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	vf := &VersionFile{Path: path, Versions: map[string]string{}}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		ver := strings.TrimPrefix(line, "v")
+		if strings.HasPrefix(ver, "lts") || strings.ContainsAny(ver, "/*") {
+			break
+		}
+		vf.Versions["node"] = ver
+		break
+	}
+	return vf, nil
 }
 
 // LoadVersionFile 解析版本声明文件（.pvmrc）
