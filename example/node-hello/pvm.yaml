@@ -1,0 +1,22 @@
+name: node-hello
+
+install: npm install --no-audit --no-fund
+start: node src/main.js pvm
+
+# 按环境生成配置文件（这一步就是普通脚本，逻辑复杂时可以换成任何语言写的脚本）
+config:dev: node scripts/gen-config.js dev
+config:pro: node scripts/gen-config.js pro
+
+# 单文件产物：配置文件随 SEA blob 一起内嵌（node >= 20.12）
+pkg: pvm pkg node --entry src/main.js --include dist/config.json --output dist/node-hello --type host
+
+release:dev:
+  - install
+  - config:dev
+  - start
+  - pkg
+
+release:pro:
+  - install
+  - config:pro
+  - pkg

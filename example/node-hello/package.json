@@ -1,0 +1,10 @@
+{
+  "name": "node-hello",
+  "version": "1.0.0",
+  "private": true,
+  "description": "pvm pkg node demo (Node SEA)",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js"
+  }
+}

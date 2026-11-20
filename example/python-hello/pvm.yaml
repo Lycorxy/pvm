@@ -1,0 +1,19 @@
+name: python-hello
+
+start: python app.py pvm
+
+# 按环境生成配置文件
+config:dev: python scripts/gen_config.py dev
+config:pro: python scripts/gen_config.py pro
+
+# PyInstaller --onefile，配置通过 --add-data 打进去（运行时 sys._MEIPASS）
+pkg: pvm pkg python --entry app.py --include dist/config.json --output dist/python-hello --type host
+
+release:dev:
+  - config:dev
+  - start
+  - pkg
+
+release:pro:
+  - config:pro
+  - pkg

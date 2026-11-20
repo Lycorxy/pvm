@@ -1,0 +1,32 @@
+# 纯语义演示：不依赖任何语言工具链，Windows / macOS / Linux 都能跑。
+# 用法：cd example/pipeline-demo && pvm run
+#
+# 注意：文本里带空格时加引号。PowerShell 的 echo 会把多个参数分行输出，
+# 加引号后一行输出，和 sh 行为一致。
+name: pipeline-demo
+
+hello: echo "hello from pvm.yaml"
+lint: echo "lint ok"
+test: echo "test ok"
+
+# parallel：下面列出的步骤同时执行，任一失败即停止其余
+check:
+  parallel: [lint, test]
+
+# 列表：从上到下依次执行，任一步失败即停
+dev:
+  - hello
+  - check                       # 引用 check → 展开成并行
+  - echo "dev ready"
+
+# 列表里可以直接嵌套 parallel，两种写法等价
+release:pro:
+  - hello
+  - parallel: [lint, test]
+  - echo "packaged"
+
+# 故意失败：验证"失败即停"（第 3 步不会执行，进程退出码非 0）
+fail:
+  - echo "step 1 ok"
+  - exit 3
+  - echo "step 3 should not run"

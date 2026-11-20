@@ -1,0 +1,22 @@
+name: go-hello
+
+fmt: gofmt -l .
+vet: go vet ./...
+test: go test ./...
+# -o 指向目录：Windows 自动出 go-hello.exe，Linux/macOS 出 go-hello
+build: go build -trimpath -o dist/ .
+run: go run . pvm
+
+# 三项检查同时跑
+check:
+  parallel: [fmt, vet, test]
+
+release:dev:
+  - check
+  - build
+  - run
+
+# 一条命令出 5 平台产物 + 每个产物一个 zip
+release:pro:
+  - check
+  - pvm pkg go --entry . --output dist/go-hello --type all --zip
