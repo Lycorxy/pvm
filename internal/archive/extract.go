@@ -2,7 +2,6 @@ package archive
 
 import (
 	"archive/tar"
-	"archive/zip"
 	"compress/bzip2"
 	"compress/gzip"
 	"fmt"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/bodgit/sevenzip"
 	"github.com/pvm/pvm/internal/logger"
+	"github.com/pvm/pvm/internal/zipx"
 )
 
 const (
@@ -27,6 +27,9 @@ const (
 )
 
 // Extract extracts an archive to the destination directory
+// Quiet 为 true 时不打印解压进度（pvm pkg 下载基座等内部调用用）
+var Quiet bool
+
 func Extract(archivePath string, destDir string, archiveType string) error {
 	switch archiveType {
 	case "tar.gz":
@@ -79,7 +82,7 @@ func extractTarGz(archivePath string, destDir string) error {
 		}
 
 		// Show progress every 500ms
-		if time.Since(lastProgressTime) > 500*time.Millisecond {
+		if !Quiet && time.Since(lastProgressTime) > 500*time.Millisecond {
 			logger.ProgressF("\r  → Extracting... %d files, %s", fileCount, formatSize(totalSize))
 			lastProgressTime = time.Now()
 		}
@@ -194,7 +197,7 @@ func extractTarBz2(archivePath string, destDir string) error {
 		}
 
 		// Show progress every 500ms
-		if time.Since(lastProgressTime) > 500*time.Millisecond {
+		if !Quiet && time.Since(lastProgressTime) > 500*time.Millisecond {
 			logger.ProgressF("\r  → Extracting... %d files, %s", fileCount, formatSize(totalSize))
 			lastProgressTime = time.Now()
 		}
@@ -279,92 +282,29 @@ func extractTarBz2(archivePath string, destDir string) error {
 	return nil
 }
 
+// extractZip 解压 zip：委托给 zipx（并行写盘、防 zip-slip/炸弹、GBK 文件名转码）
 func extractZip(archivePath string, destDir string) error {
-	r, err := zip.OpenReader(archivePath)
+	if !Quiet {
+		logger.Info("  → Extracting zip archive...")
+	}
+
+	opt := zipx.Options{}
+	if !Quiet {
+		opt.Progress = func(files, bytes int64) {
+			logger.ProgressF("\r  → Extracting... %d files, %s", files, formatSize(bytes))
+		}
+	}
+	stats, err := zipx.Unzip(archivePath, destDir, opt)
 	if err != nil {
-		return fmt.Errorf("open zip: %w", err)
+		return err
 	}
-	defer r.Close()
-
-	// Check file count
-	if len(r.File) > maxFiles {
-		return fmt.Errorf("archive contains too many files (%d > %d), possible zip bomb", len(r.File), maxFiles)
+	for _, w := range stats.Warnings {
+		logger.Verbose("  Warning: %s", w)
 	}
-
-	var totalSize int64
-	lastProgressTime := time.Now()
-
-	logger.Info("  → Extracting zip archive...")
-
-	for i, f := range r.File {
-		// Show progress every 500ms or every 100 files
-		if time.Since(lastProgressTime) > 500*time.Millisecond || i%100 == 0 {
-			logger.ProgressF("\r  → Extracting... %d/%d files, %s", i+1, len(r.File), formatSize(totalSize))
-			lastProgressTime = time.Now()
-		}
-
-		target := filepath.Join(destDir, f.Name)
-
-		// Security: prevent path traversal
-		cleanTarget := filepath.Clean(target)
-		cleanDest := filepath.Clean(destDir)
-		if !strings.HasPrefix(cleanTarget, cleanDest+string(os.PathSeparator)) && cleanTarget != cleanDest {
-			return fmt.Errorf("invalid file path in archive (path traversal): %s", f.Name)
-		}
-
-		// Check uncompressed size from header
-		if int64(f.UncompressedSize64) > maxFileSize {
-			return fmt.Errorf("file %s exceeds max size (%s > %s)", f.Name,
-				formatSize(int64(f.UncompressedSize64)), formatSize(maxFileSize))
-		}
-
-		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(target, 0755); err != nil {
-				return fmt.Errorf("mkdir: %w", err)
-			}
-			continue
-		}
-
-		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-			return fmt.Errorf("mkdir parent: %w", err)
-		}
-
-		outFile, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, f.Mode())
-		if err != nil {
-			return fmt.Errorf("create file: %w", err)
-		}
-
-		rc, err := f.Open()
-		if err != nil {
-			outFile.Close()
-			return fmt.Errorf("open zip entry: %w", err)
-		}
-
-		// Use LimitReader to prevent decompression bombs
-		limitedReader := io.LimitReader(rc, maxFileSize+1)
-		written, err := io.Copy(outFile, limitedReader)
-		rc.Close()
-		outFile.Close()
-
-		if err != nil {
-			return fmt.Errorf("extract file %s: %w", f.Name, err)
-		}
-
-		if written > maxFileSize {
-			os.Remove(target)
-			return fmt.Errorf("file %s exceeds max size during extraction", f.Name)
-		}
-
-		totalSize += written
-		if totalSize > maxTotalSize {
-			return fmt.Errorf("total extracted size exceeds limit (%s), possible zip bomb",
-				formatSize(maxTotalSize))
-		}
-	}
-
-	logger.Verbose("  Extracted %d files, total size: %s", len(r.File), formatSize(totalSize))
+	logger.Verbose("  Extracted %d files, total size: %s", stats.Files, formatSize(stats.Size))
 	return nil
 }
+
 
 func extract7z(archivePath string, destDir string) error {
 	r, err := sevenzip.OpenReader(archivePath)
@@ -385,7 +325,7 @@ func extract7z(archivePath string, destDir string) error {
 
 	for i, f := range r.File {
 		// Show progress every 500ms or every 100 files
-		if time.Since(lastProgressTime) > 500*time.Millisecond || i%100 == 0 {
+		if !Quiet && (time.Since(lastProgressTime) > 500*time.Millisecond || i%100 == 0) {
 			logger.ProgressF("\r  → Extracting... %d/%d files, %s", i+1, len(r.File), formatSize(totalSize))
 			lastProgressTime = time.Now()
 		}

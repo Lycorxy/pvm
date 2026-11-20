@@ -110,8 +110,12 @@ func Execute() error {
 		return runConfig(args)
 	case "run":
 		return runRun(args)
-	case "pack":
-		return runPack(args)
+	case "pkg":
+		return runPkg(args)
+	case "zip":
+		return runZip(args)
+	case "unzip":
+		return runUnzip(args)
 	case "version", "-v", "--version":
 		fmt.Printf("pvm %s\n", Version)
 		return nil
@@ -143,16 +147,20 @@ Version management (shim-driven):
   init                 Create .pvmrc in current directory
   reshim               Rebuild shim scripts (after adding a binary)
 
+Pipeline & packaging:
+  run [name]           Run a pipeline from pvm.yaml (no name = list) [--dry-run] [-C dir]
+  pkg <node|go|python> Pack into single executables [--entry] [--output] [--type all|host|win|linux|mac] [--include file] [--zip]
+  zip <src...>         Create a zip [--output x.zip] [--exclude glob] [--reproducible]
+  unzip <file.zip>     Extract a zip [--output dir] [--list]
+
 System:
   setup                First-time setup (dirs, PATH, shims) [--scope user|admin]
   setup-path           Check and fix PATH configuration (diagnose conflicts)
   repair-owner         Restore PVM_HOME file ownership to current user
                        (fixes installs broken by Administrator sessions)
   config               Manage .pvmrc project config (no admin needed!)
-  run <name>           Run a pipeline from pvm.yaml [--list|--dry-run]
-  pack <node|python|go>  Pack into single executables for all platforms by default; --platform <os>/<arch> to pick one
   doctor               Check pvm installation health
-  validate             Deep validation of shims & version consistency [--auto-fix]
+  validate             Deep validation of shims, versions & pvm.yaml [--auto-fix]
   diagnostics <rt>     Detailed diagnostics for a specific runtime
   self-update          Update pvm itself
   uninstall            Uninstall pvm from this machine
