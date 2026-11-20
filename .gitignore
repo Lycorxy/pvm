@@ -23,3 +23,6 @@ pvm-shim-*
 /pvm_ai_mate.md
 /pvm_container_isolation.md
 /pvm_pipeline.md
+
+# 本地生成的分发包（CI 会从目录重新打包）
+.codebuddy/skills/pvm.zip
