@@ -300,8 +300,13 @@ async function syncGitee() {
   // 查询/创建 release
   let releaseId = "";
   const q = await httpGet(`${api(`/releases/tags/${tag}`)}?access_token=${token}`);
+  // Gitee 对不存在的 tag 可能返回 200 + body "null"，直接 .id 会崩
+  let existing = null;
   if (q.status === 200) {
-    releaseId = JSON.parse(q.body.toString("utf8")).id;
+    try { existing = JSON.parse(q.body.toString("utf8")); } catch { existing = null; }
+  }
+  if (existing && existing.id) {
+    releaseId = existing.id;
     console.log(`  Gitee release 已存在 (id=${releaseId})`);
   } else {
     const body = JSON.stringify({ access_token: token, tag_name: tag, name: `pvm ${tag}`, target_commitish: "master", body: opts.notes || `pvm ${tag}` });
@@ -322,8 +327,19 @@ async function syncGitee() {
   }
 
   // 上传资产（multipart 用 curl 子进程，跨平台自带）
-  // DEL-OLD-ATTACH
-  for (const a of assets) { try { await httpGet(api + '/releases/' + releaseId + '/attach_files?access_token=' + encodeURIComponent(token) + '&filename=' + encodeURIComponent(f), { method: 'DELETE' }); } catch (e2) {} }
+  // Gitee 删除附件必须用 attach_file_id：先列出现有附件，把同名旧文件删掉，避免新旧并存
+  const wanted = new Set(assets.map((a) => path.basename(a)));
+  try {
+    const list = await httpGet(`${api(`/releases/${releaseId}/attach_files`)}?access_token=${encodeURIComponent(token)}`);
+    let olds = [];
+    try { olds = JSON.parse(list.body.toString("utf8")) || []; } catch { olds = []; }
+    for (const o of olds) {
+      if (!o || !o.name || !wanted.has(o.name)) continue;
+      try {
+        await httpGet(`${api(`/releases/${releaseId}/attach_files/${o.id}`)}?access_token=${encodeURIComponent(token)}`, { method: "DELETE" });
+      } catch (e2) { /* 单个附件删除失败不阻断 */ }
+    }
+  } catch (e2) { /* 列表接口失败时继续上传 */ }
   let failCount = 0;
   for (const a of assets) {
     process.stdout.write(`  上传 ${path.basename(a)} ...`);
