@@ -56,8 +56,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Rspress 构建输出到 dockit/doc_build，用 cross-env 自动注入 /pvm/ 前缀
-          path: dockit/doc_build
+          # rspress.config.ts 的 outDir 固定为仓库根的 docs/（同时供 Gitee Pages 使用）
+          path: docs
 
   deploy:
     needs: build
