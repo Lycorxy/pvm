@@ -6,6 +6,8 @@
 
 一个 Rust 理念，Go 实现的**多语言版本管理器**。统一管理 node、python、go、rust、bun、deno、git 等多种运行时的版本，一个工具搞定所有。
 
+除了版本，它还管两件事：**项目流水线**（`pvm.yaml`：构建 / 测试 / 打包怎么写）和**单文件打包**（`pvm pkg`：一条命令出 5 平台二进制）。
+
 ---
 
 ## 为什么用 pvm？
@@ -19,7 +21,9 @@
 | Bun / Deno | | | | | ✅ |
 | Git | | | | | ✅ |
 | 一条命令切换 | | | | | ✅ |
-| .pvmrc 项目配置 | | | | | ✅ |
+| .pvmrc / .nvmrc 项目配置 | | | | | ✅ |
+| 业务流水线（pvm.yaml） | | | | | ✅ |
+| 单文件打包（5 平台） | | | | | ✅ |
 
 **安装一个工具，管理所有运行时，零上下文切换，你只需要这一个。**
 
@@ -90,6 +94,20 @@ pvm setup                    # 初始化/修复环境
 pvm self-update              # 更新 pvm 自身
 ```
 
+```sh
+# 流水线与打包
+pvm run                                  # 列出 pvm.yaml 里的流水线
+pvm run release:pro                      # 执行（串行 + 并行）
+pvm run release:pro --dry-run            # 只看执行计划
+
+pvm pkg go --entry . --output dist/app                 # 一条命令出 5 平台
+pvm pkg node --entry src/main.js --output dist/app --include dist/config.json
+pvm pkg python --entry app.py --output dist/app
+
+pvm zip dist -o app.zip --reproducible    # 压缩（同样输入 → 同样字节）
+pvm unzip app.zip -l                      # 查看内容
+```
+
 ---
 
 ## 支持的运行时
@@ -116,19 +134,84 @@ pvm self-update              # 更新 pvm 自身
 
 ```ini
 # .pvmrc
-node = 20
-python = 3.12
-pnpm = 9
+node 20.20.2
+python 3.14.7
+pnpm 8.15.9
 ```
 
-团队成员 clone 项目后，`pvm use` 自动切换到正确版本：
+团队成员 clone 项目后，`cd` 进去即生效——shim 每次执行命令时实时读取当前目录的 `.pvmrc`，
+不需要 `pvm use`，也不用重启终端：
 
 ```sh
 $ cd my-project
-$ pvm use
-✓ node 20.11.0
-✓ python 3.12.3
-✓ pnpm 9.1.0
+$ node -v
+v20.20.2        # 换到另一个项目，会自动变成那个项目声明的版本
+```
+
+也兼容 nvm 的 `.nvmrc`（只读不写；两者都在时 `.pvmrc` 优先）。
+迁移时不用改文件，删掉 nvm 即可，详见[从其他工具迁移](#从其他工具迁移)。
+
+---
+
+## 业务流水线 (pvm.yaml)
+
+项目根放一个 `pvm.yaml`，把构建 / 测试 / 打包写成声明（人手写，pvm 只读）。规则只有四条：
+
+```yaml
+name: my-app
+
+install: pnpm i         # 1) 名字: 命令 = 一条命令
+lint: pnpm lint
+test: pnpm test
+build: pnpm build
+
+check:                  # 3) parallel: 加列表 = 同时执行
+  parallel: [lint, test]
+
+release:pro:            # 2) 名字: 加列表 = 从上到下依次执行，失败即停
+  - install
+  - check               # 4) 步骤名等于某条流水线名 = 引用，否则当命令执行
+  - build
+  - pvm pkg go --entry . --output dist/app
+```
+
+```sh
+pvm run                          # 列出全部流水线
+pvm run release:pro              # 执行
+pvm run release:pro --dry-run    # 树形打印计划，不执行
+```
+
+顺序列表里连续的命令共用一个 shell（`cd` 会保留）；并行分支各自独立进程，输出带 `[名字]` 前缀，
+任一失败即终止其余。执行前会自动装齐 `.pvmrc` 声明的版本。
+
+---
+
+## 打包与压缩
+
+```sh
+pvm pkg go --entry . --output dist/app               # 默认 5 平台
+pvm pkg node --entry src/main.js --output dist/app   # Node SEA（≥ 20）
+pvm pkg python --entry app.py --output dist/app      # PyInstaller
+```
+
+| 参数 | 说明 |
+| ---- | ---- |
+| `--type` | `all`（默认 5 平台）/ `host` / `win` / `linux` / `mac`，可带 `-arm64`、逗号多选 |
+| `--include` | 配置文件/资源一起打进单文件（node SEA assets / python `--add-data`；go 用 `//go:embed`） |
+| `--libc legacy` | linux 基座换成 glibc-217（CentOS 7 可用），自动下载 |
+| `--external` | node：esbuild 不打包的模块，如 `--external pino-pretty` |
+| `--zip` | 每个产物附一个同名 zip |
+
+```sh
+# 部署到 CentOS 7（glibc 2.17）
+pvm pkg node --entry src/app.ts --output dist/app --type linux-amd64 --libc legacy
+
+# 配置一起打进产物 + 附 zip
+pvm pkg go --entry . --output dist/app --include config.yaml --zip
+
+# 压缩与解压
+pvm zip dist -o app.zip -x node_modules --reproducible
+pvm unzip app.zip -o out -l
 ```
 
 ---
@@ -166,10 +249,9 @@ v20.11.0                   ← shim 转发到当前激活版本
 ## 从其他工具迁移
 
 ```sh
-# 从 nvm 迁移
-nvm current                 # 记下当前版本
-pvm install node@<version>  # 安装相同版本
-pvm use node@<version>
+# 从 nvm 迁移：.nvmrc 不用改，pvm 直接读
+pvm install node@<version>   # 装同一个版本
+# 之后可以卸掉 nvm：删 ~/.nvm 和 shell 配置里的 nvm.sh，重开终端
 
 # 从 pyenv 迁移
 pyenv version                # 记下当前版本
@@ -218,10 +300,13 @@ go test ./...
 pvm/
 ├── cmd/             # CLI 命令实现
 ├── internal/
-│   ├── config/      # 配置管理
+│   ├── config/      # 配置管理（.pvmrc / pvm.yaml）
 │   ├── installer/   # 安装逻辑
 │   ├── registry/    # 版本信息与下载源
 │   ├── shim/        # Shim 管理
+│   ├── pipeline/    # pvm.yaml 编译与执行
+│   ├── pack/        # pvm pkg（node SEA / go build / PyInstaller）
+│   ├── zipx/        # pvm zip / unzip
 │   └── plugins/     # 各运行时插件
 ├── scripts/         # 构建与安装脚本
 └── dist/            # 构建产物
